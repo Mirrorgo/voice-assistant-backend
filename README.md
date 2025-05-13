@@ -14,7 +14,7 @@
 运行以下命令进行安装：
 
 ```bash
-curl -s https://github.com/Mirrorgo/voice-assistant-backend/blob/master/install.sh | bash
+curl -s https://raw.githubusercontent.com/Mirrorgo/voice-assistant-backend/master/install.sh | bash
 ```
 
 ## 使用方法
