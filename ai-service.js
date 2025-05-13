@@ -1,10 +1,10 @@
-// ai-service.js
+// ai-service.js - 极简版（保持不变）
 const axios = require("axios");
 const FormData = require("form-data");
 const fs = require("fs");
 
 /**
- * 简化版 AI 服务类
+ * 极简版 AI 服务类 - 最小化处理响应
  */
 class AIService {
   /**
@@ -15,7 +15,7 @@ class AIService {
    */
   constructor(config) {
     this.apiKey = config.apiKey;
-    this.apiUrl = config.apiUrl || "https://api.bltcy.ai";
+    this.apiUrl = config.apiUrl;
   }
 
   /**
@@ -58,10 +58,47 @@ class AIService {
       console.log("收到响应状态:", response.status);
 
       if (response.data.choices && response.data.choices.length > 0) {
-        return {
-          content: response.data.choices[0].message.content,
-          success: true,
-        };
+        const aiResponseText = response.data.choices[0].message.content;
+
+        // 在控制台打印原始响应
+        console.log("原始AI响应:", aiResponseText);
+
+        // 尝试解析JSON
+        try {
+          const parsedResponse = JSON.parse(aiResponseText);
+          console.log("成功解析JSON响应");
+
+          // 直接返回解析后的对象，保留所有原始字段
+          return {
+            ...parsedResponse,
+            success: true
+          };
+        } catch (e) {
+          console.log("响应不是JSON格式，尝试从代码块中提取");
+
+          // 尝试从代码块中提取JSON
+          const codeBlockRegex = /```(?:json)?\s*([\s\S]*?)```/;
+          const match = aiResponseText.match(codeBlockRegex);
+
+          if (match && match[1]) {
+            try {
+              const parsedJson = JSON.parse(match[1].trim());
+              console.log("从代码块中提取到JSON");
+              return {
+                ...parsedJson,
+                success: true
+              };
+            } catch (e2) {
+              console.error("代码块中的内容不是有效JSON:", e2.message);
+            }
+          }
+
+          // 如果无法解析为JSON，直接返回文本内容
+          return {
+            content: aiResponseText,
+            success: true
+          };
+        }
       } else {
         console.error("没有返回有效的选项:", response.data);
         return {
@@ -81,17 +118,11 @@ class AIService {
   }
 
   /**
-   * 将音频转录为文本 - 严格按照官方示例实现
+   * 将音频转录为文本
    * @param {string} filePath - 音频文件路径
    * @param {Object} [options={}] - 转录选项
-   * @param {string} [options.model] - 转录模型
-   * @param {string} [options.language] - 音频语言
-   * @param {string} [options.prompt] - 提示词
-   * @param {string} [options.response_format] - 响应格式
-   * @param {number} [options.temperature] - 温度参数
    * @returns {Promise<string>} - 转录的文本
    */
-
   async transcribeAudio(audioFilePath, options = {}) {
     try {
       const fileStream = fs.createReadStream(audioFilePath);

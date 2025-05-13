@@ -1,4 +1,4 @@
-// server.js
+// server.js - 添加讯飞API集成功能
 const express = require("express");
 const cors = require("cors");
 const multer = require("multer");
@@ -6,8 +6,9 @@ const path = require("path");
 const fs = require("fs");
 require("dotenv").config();
 
-// 导入简化版 AI 服务
+// 导入 AI 服务和讯飞服务
 const AIService = require("./ai-service");
+const XfyunService = require("./xfyun-service");
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -64,9 +65,9 @@ const upload = multer({
 });
 
 // 环境变量
-const AI_API_KEY = process.env.AI_API_KEY;
-const AI_API_URL = process.env.AI_API_URL || "https://api.bltcy.ai";
-const SPEECH_LANGUAGE = process.env.SPEECH_LANGUAGE || "en-US"; // 默认语言为英语
+const AI_API_KEY = process.env.API_KEY;
+const AI_API_URL = "https://api.bltcy.ai";
+const SPEECH_LANGUAGE = "en-US"; // 默认语言为英语
 
 // 创建 AI 服务实例
 const aiService = new AIService({
@@ -74,30 +75,76 @@ const aiService = new AIService({
   apiUrl: AI_API_URL,
 });
 
-// API 端点，处理音频
+// 创建讯飞服务实例
+const xfyunService = new XfyunService();
+
+// 发送文本到 AI 函数
+async function sendTextToAI(userText, systemPrompt, alienParameters = null) {
+  console.log("发送到文本大模型...");
+  console.log("系统提示词长度:", systemPrompt?.length || 0);
+
+  // 构建消息，包括人类输入和任何外星人参数的上下文
+  const messages = [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userText },
+  ];
+
+  // 文本大模型的 modelName
+  const modelName = "gemini-1.5-flash";
+
+  try {
+    // 记录请求开始时间
+    const startTime = Date.now();
+
+    const aiResponse = await aiService.sendMessage(messages, modelName);
+
+    // 记录请求结束时间和耗时
+    const endTime = Date.now();
+    console.log(`模型响应耗时: ${endTime - startTime}ms`);
+
+    console.log("文本大模型响应已接收完成");
+
+    // 直接返回AI服务提供的结果，不做额外处理
+    return aiResponse;
+  } catch (error) {
+    console.error("AI 处理错误:", error);
+    throw error;
+  }
+}
+
+// 文本 API 端点 - 保持不变
+app.post("/api/process-text", async (req, res) => {
+  try {
+    const { text, systemPrompt, alienParameters } = req.body;
+
+    if (!text) {
+      return res.status(400).json({ error: "没有提供文本内容" });
+    }
+    if (!systemPrompt) {
+      return res.status(400).json({ error: "没有提供系统提示词" });
+    }
+
+    // 调用发送文本到大模型的函数
+    const aiResult = await sendTextToAI(text, systemPrompt, alienParameters);
+
+    // 直接返回原始结果
+    return res.json(aiResult);
+  } catch (error) {
+    console.error("处理文本错误:", error);
+    return res.status(500).json({
+      error: "服务器错误",
+      message: error.message,
+    });
+  }
+});
+
+// 修改后的音频处理 API 端点 - 仅处理语音转文字，不发送到AI模型
 app.post("/api/process-audio", upload.single("file"), async (req, res) => {
   let audioFilePath = null;
 
   try {
     if (!req.file) {
       return res.status(400).json({ error: "没有提供音频文件" });
-    }
-    if (!req.body.systemPrompt) {
-      return res.status(400).json({ error: "没有提供系统提示词" });
-    }
-
-    const systemPrompt = req.body.systemPrompt;
-    console.log("使用系统提示词:", systemPrompt);
-
-    // 获取 alienParameters 如果提供了
-    let alienParameters = null;
-    if (req.body.alienParameters) {
-      try {
-        alienParameters = JSON.parse(req.body.alienParameters);
-        console.log("当前外星人参数:", alienParameters);
-      } catch (e) {
-        console.error("解析外星人参数时出错:", e);
-      }
     }
 
     audioFilePath = req.file.path;
@@ -107,7 +154,7 @@ app.post("/api/process-audio", upload.single("file"), async (req, res) => {
     console.log("文件保存路径:", audioFilePath);
 
     try {
-      // 步骤 1: 语音转文字
+      // 只执行语音转文字
       console.log("开始转录语音...");
 
       // 转录选项
@@ -134,54 +181,16 @@ app.post("/api/process-audio", upload.single("file"), async (req, res) => {
 
       console.log("转录完成:", transcript);
 
-      // 步骤 2: 将文本发送给 AI 处理
-      console.log("发送到文本大模型...");
-
-      // 构建消息，包括人类输入和任何外星人参数的上下文
-      const messages = [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: transcript },
-      ];
-
-      // 文本大模型的 modelName
-      const modelName = "qwen-turbo";
-
-      const aiResponse = await aiService.sendMessage(messages, modelName);
-      console.log("文本大模型响应已收到");
-
-      // 提取响应中的参数更新
-      let cleanedResponse = aiResponse.content;
-      let updatedAlienParams = null;
-
-      const paramRegex = /\[PARAMETERS_UPDATE\]([\s\S]*?)\[\/PARAMETERS_UPDATE\]/;
-      const match = aiResponse.content.match(paramRegex);
-
-      if (match) {
-        try {
-          // 提取并解析参数 JSON
-          const paramsJson = match[1].trim();
-          updatedAlienParams = JSON.parse(paramsJson);
-
-          console.log("提取到更新的外星人参数:", updatedAlienParams);
-
-          // 前端会处理响应中的参数标记，所以这里不移除它们
-        } catch (e) {
-          console.error("解析参数更新时出错:", e);
-        }
-      }
-
-      // 步骤 3: 返回结果
+      // 返回转录文本，但不发送到AI模型
       return res.json({
+        success: true,
         transcript: transcript,
-        content: aiResponse.content,
-        success: aiResponse.success,
-        error: aiResponse.error,
-        alienParameters: updatedAlienParams || alienParameters,
+        content: "" // 保持一致的响应格式
       });
     } catch (error) {
-      console.error("AI 处理错误:", error);
+      console.error("语音转录错误:", error);
       return res.status(500).json({
-        error: "AI 处理错误",
+        error: "语音转录错误",
         message: error.message,
       });
     }
@@ -218,6 +227,23 @@ app.post("/api/process-audio", upload.single("file"), async (req, res) => {
   }
 });
 
+// 新增：获取讯飞API签名URL的端点
+app.get("/api/get-xfyun-url", (req, res) => {
+  try {
+    // 生成带有签名的URL
+    const signedUrl = xfyunService.generateSignedUrl();
+
+    // 返回给前端
+    res.json({ signedUrl });
+  } catch (error) {
+    console.error("获取讯飞API URL错误:", error);
+    res.status(500).json({
+      error: "生成讯飞API URL失败",
+      message: error.message
+    });
+  }
+});
+
 // 健康检查接口
 app.get("/api/health", (req, res) => {
   const healthStatus = {
@@ -225,6 +251,7 @@ app.get("/api/health", (req, res) => {
     message: "服务器正在运行",
     apiUrl: AI_API_URL,
     language: SPEECH_LANGUAGE,
+    xfyunConfigured: !!(process.env.XFYUN_API_KEY && process.env.XFYUN_API_SECRET && process.env.XFYUN_APP_ID),
     timestamp: new Date().toISOString()
   };
 
@@ -251,6 +278,12 @@ app.listen(port, () => {
   console.log(`后端服务器运行在 http://localhost:${port}`);
   console.log(`API URL: ${AI_API_URL}`);
   console.log(`语音语言: ${SPEECH_LANGUAGE}`);
+
+  if (process.env.XFYUN_API_KEY && process.env.XFYUN_API_SECRET && process.env.XFYUN_APP_ID) {
+    console.log("讯飞API配置已加载");
+  } else {
+    console.log("警告: 讯飞API配置不完整或缺失");
+  }
 
   // 检查 uploads 目录是否存在
   const uploadDir = path.join(__dirname, "uploads");
