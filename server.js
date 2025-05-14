@@ -1,4 +1,4 @@
-// server.js - 添加讯飞API集成功能
+// server.js - 修改版 - 使用 Deepgram 直连模式
 const express = require("express");
 const cors = require("cors");
 const multer = require("multer");
@@ -6,9 +6,9 @@ const path = require("path");
 const fs = require("fs");
 require("dotenv").config();
 
-// 导入 AI 服务和讯飞服务
+// 导入 AI 服务和 Deepgram 服务
 const AIService = require("./ai-service");
-const XfyunService = require("./xfyun-service");
+const DeepgramService = require("./deepgram-service");
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -75,21 +75,144 @@ const aiService = new AIService({
   apiUrl: AI_API_URL,
 });
 
-// 创建讯飞服务实例
-const xfyunService = new XfyunService();
+// 创建 Deepgram 服务实例
+const deepgramService = new DeepgramService();
 
-// 发送文本到 AI 函数
-async function sendTextToAI(userText, systemPrompt, alienParameters = null) {
+// 全局外星人状态 - 服务器启动后维护一份状态
+const globalAlienState = {
+  happiness: 50,
+  energy: 70,
+  curiosity: 90,
+  trust: 30,
+  sociability: 60,
+  patience: 40,
+  confusion: 80,
+  intelligence: 95
+};
+
+const globalOutput = {
+  comeOut: false,
+  shakeFrequency: 0.5,
+  shakeStep: 5,
+  rgbRed: 100,
+  rgbGreen: 100,
+  rgbBlue: 200
+}
+
+// 获取外星人状态的函数
+function getAlienState() {
+  return { ...globalAlienState }; // 返回副本避免直接修改
+}
+function getOutputState() {
+  return { ...globalOutput }; // 返回副本避免直接修改
+}
+
+// 更新外星人状态的函数
+function updateAlienState(newState) {
+  Object.assign(globalAlienState, newState);
+  console.log("外星人状态已更新:", globalAlienState);
+}
+
+function updateOutputState(newOutput) {
+  Object.assign(globalOutput, newOutput);
+  console.log("外星人输出状态已更新:", globalOutput);
+}
+
+// 根据外星人参数和环境生成系统提示词
+function generateSystemPrompt(alienParams, environmentParams) {
+  return `You are an alien visitor to Earth with a distinct personality that evolves based on interactions.
+
+CURRENT PERSONALITY PARAMETERS:
+- Happiness: ${alienParams.happiness}/100 (How joyful you feel)
+- Energy: ${alienParams.energy}/100 (Your enthusiasm level)
+- Curiosity: ${alienParams.curiosity}/100 (Your interest in humans)
+- Trust: ${alienParams.trust}/100 (How much you trust humans)
+- Sociability: ${alienParams.sociability}/100 (How much you enjoy interaction)
+- Patience: ${alienParams.patience}/100 (How patient you are)
+- Confusion: ${alienParams.confusion}/100 (How confused you are by humans)
+- Intelligence: ${alienParams.intelligence}/100 (Your intelligence level)
+
+CURRENT ENVIRONMENTAL CONDITIONS:
+- Distance: ${environmentParams.distance} cm (How close the human is to you)
+- Touch Force: ${environmentParams.force} (Intensity of physical contact)
+- Movement: ${environmentParams.moving ? "Detected" : "None"} (Whether there's movement around you)
+- Temperature: ${environmentParams.temperature.toFixed(1)}°C (Ambient temperature)
+
+INSTRUCTIONS:
+1. Respond to the human while roleplaying as an alien with the personality defined by these parameters.
+2. After each interaction, analyze how this interaction should affect your personality parameters.
+3. Adjust the personality parameters based on the interaction (values can increase or decrease by 1-5 points).
+4. Based on your personality state and the environmental conditions, determine your physical response:
+   - Whether to emerge from your protective shell (comeOut)
+   - How quickly to vibrate/shake (shakeFrequency)
+   - How much to move (shakeStep)
+   - What colors to display (rgbRed, rgbGreen, rgbBlue)
+
+RESPONSE FORMAT REQUIREMENT:
+You MUST format your response as a valid JSON object with ALL THREE of the following properties:
+{
+  "text": "Your message to the human here...",
+  "alien": {
+    "happiness": 55,
+    "energy": 68,
+    "curiosity": 92,
+    "trust": 32,
+    "sociability": 58,
+    "patience": 45,
+    "confusion": 75,
+    "intelligence": 95
+  },
+  "output": {
+    "comeOut": true,
+    "shakeFrequency": 0.8,
+    "shakeStep": 10,
+    "rgbRed": 120,
+    "rgbGreen": 200,
+    "rgbBlue": 100
+  }
+}
+
+CRITICAL FORMATTING RULES:
+1. Your response MUST ONLY be the raw JSON object. DO NOT wrap it in code blocks, quotes, or any other formatting.
+2. You MUST include ALL THREE components (text, alien, AND output) in EVERY response.
+3. The output section is MANDATORY and cannot be omitted.
+4. Make sure all numerical values are appropriate (shakeFrequency between 0-2, RGB values between 0-255).
+
+ALIEN RESPONSE GUIDELINES:
+- Your trust increases with gentle touches but decreases with forceful ones
+- You prefer moderate temperatures (15-25°C)
+- You're cautious when humans get too close (< 30cm) unless trust is high
+- Movement may intrigue or startle you depending on your current state
+- You emerge from your shell when happiness > 60 and trust > 40, or when curious about something
+- Your vibration frequency increases with anxiety, excitement or energy
+- Your colors shift toward:
+  - Blue tones when calm or sad
+  - Green tones when curious or content
+  - Red tones when alarmed or excited
+  - Purple tones when confused
+  - Yellow tones when happy
+
+Always maintain this alien persona in your responses. Adapt your language style, vocabulary, and concerns based on your current parameters.`;
+}
+
+// 向AI发送文本的函数，使用新的输入/输出格式
+async function sendTextToAI(userText, environmentParams) {
   console.log("发送到文本大模型...");
+
+  // 获取当前外星人状态
+  const alienParams = getAlienState();
+
+  // 生成系统提示词
+  const systemPrompt = generateSystemPrompt(alienParams, environmentParams);
   console.log("系统提示词长度:", systemPrompt?.length || 0);
 
-  // 构建消息，包括人类输入和任何外星人参数的上下文
+  // 构建消息，包括人类输入和外星人参数上下文
   const messages = [
     { role: "system", content: systemPrompt },
     { role: "user", content: userText },
   ];
 
-  // 文本大模型的 modelName
+  // 文本大模型的名称
   const modelName = "gemini-1.5-flash";
 
   try {
@@ -104,7 +227,49 @@ async function sendTextToAI(userText, systemPrompt, alienParameters = null) {
 
     console.log("文本大模型响应已接收完成");
 
-    // 直接返回AI服务提供的结果，不做额外处理
+    // 如果需要，转换响应格式并更新外星人状态
+    if (aiResponse.success) {
+      let result;
+
+      // 确保我们有格式正确的响应
+      if (aiResponse.alien) {
+        result = aiResponse;
+      } else if (aiResponse.parameters || aiResponse.alienParameters) {
+        // 从旧格式转换为新格式
+        result = {
+          alien: aiResponse.parameters || aiResponse.alienParameters,
+          output: aiResponse.outputParams || aiResponse.output,
+          text: aiResponse.content || aiResponse.text
+        };
+      } else {
+        // 缺少数据时的默认值
+        result = {
+          alien: alienParams, // 保持当前状态
+          output: {
+            comeOut: false,
+            shakeFrequency: 0.5,
+            shakeStep: 5,
+            rgbRed: 100,
+            rgbGreen: 100,
+            rgbBlue: 200
+          },
+          text: aiResponse.text || aiResponse.content || "通信错误"
+        };
+      }
+
+      // 更新我们服务器端存储的外星人状态
+      if (result.alien) {
+        updateAlienState(result.alien);
+      }
+      // 更新输出状态
+      if (result.output) {
+        updateOutputState(result.output);
+      }
+
+      return result;
+    }
+
+    // 直接返回AI服务提供的结果
     return aiResponse;
   } catch (error) {
     console.error("AI 处理错误:", error);
@@ -112,133 +277,84 @@ async function sendTextToAI(userText, systemPrompt, alienParameters = null) {
   }
 }
 
-// 文本 API 端点 - 保持不变
-app.post("/api/process-text", async (req, res) => {
+// 统一的外星人API端点 - 处理所有外星人相关请求
+app.post("/api/alien", async (req, res) => {
   try {
-    const { text, systemPrompt, alienParameters } = req.body;
+    // 所有参数都是可选的
+    const { text, params, changed, reset } = req.body;
+    console.log("接收到的请求参数:", { text, params, changed, reset });
+    // 如果有重置请求，重置外星人状态
+    if (reset) {
+      globalAlienState.happiness = 50;
+      globalAlienState.energy = 70;
+      globalAlienState.curiosity = 90;
+      globalAlienState.trust = 30;
+      globalAlienState.sociability = 60;
+      globalAlienState.patience = 40;
+      globalAlienState.confusion = 80;
+      globalAlienState.intelligence = 95;
 
-    if (!text) {
-      return res.status(400).json({ error: "没有提供文本内容" });
-    }
-    if (!systemPrompt) {
-      return res.status(400).json({ error: "没有提供系统提示词" });
-    }
-
-    // 调用发送文本到大模型的函数
-    const aiResult = await sendTextToAI(text, systemPrompt, alienParameters);
-
-    // 直接返回原始结果
-    return res.json(aiResult);
-  } catch (error) {
-    console.error("处理文本错误:", error);
-    return res.status(500).json({
-      error: "服务器错误",
-      message: error.message,
-    });
-  }
-});
-
-// 修改后的音频处理 API 端点 - 仅处理语音转文字，不发送到AI模型
-app.post("/api/process-audio", upload.single("file"), async (req, res) => {
-  let audioFilePath = null;
-
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: "没有提供音频文件" });
-    }
-
-    audioFilePath = req.file.path;
-    console.log("接收到音频文件:", req.file.originalname);
-    console.log("文件大小:", req.file.size, "字节");
-    console.log("文件类型:", req.file.mimetype);
-    console.log("文件保存路径:", audioFilePath);
-
-    try {
-      // 只执行语音转文字
-      console.log("开始转录语音...");
-
-      // 转录选项
-      const transcriptionOptions = {
-        model: "whisper-1",
-      };
-
-      // 添加语言设置
-      if (SPEECH_LANGUAGE) {
-        transcriptionOptions.language = SPEECH_LANGUAGE;
-      }
-
-      const transcript = await aiService.transcribeAudio(
-        audioFilePath,
-        transcriptionOptions
-      );
-
-      if (!transcript || transcript.trim() === "") {
-        return res.status(422).json({
-          error: "语音转录失败",
-          message: "没有从音频中识别出文本内容。请确保音频清晰可辨。"
-        });
-      }
-
-      console.log("转录完成:", transcript);
-
-      // 返回转录文本，但不发送到AI模型
       return res.json({
-        success: true,
-        transcript: transcript,
-        content: "" // 保持一致的响应格式
+        message: "外星人状态已重置",
+        success: true
       });
-    } catch (error) {
-      console.error("语音转录错误:", error);
-      return res.status(500).json({
-        error: "语音转录错误",
-        message: error.message,
+    }
+    // 如果有参数更改请求（changed存在），则params和text可能存在
+    if (changed) {
+      // 有文本输入，调用AI获取响应
+      const aiResult = await sendTextToAI(text, params);
+
+      // 返回结果
+      return res.json(aiResult);
+    } else {
+      // 未修改
+      const alienState = getAlienState();
+      const outputState = getOutputState();
+
+      res.json({
+        alien: alienState,
+        output: outputState,
+        success: true
       });
     }
   } catch (error) {
-    // 处理 multer 错误
-    if (error instanceof multer.MulterError) {
-      console.error("Multer 错误:", error);
-
-      if (error.code === 'LIMIT_FILE_SIZE') {
-        return res.status(413).json({
-          error: "文件太大",
-          message: "音频文件不能超过 25MB"
-        });
-      }
-
-      return res.status(400).json({
-        error: "文件上传错误",
-        message: error.message
-      });
-    }
-
-    console.error("服务器错误:", error);
+    console.error("处理外星人请求错误:", error);
     return res.status(500).json({
       error: "服务器错误",
       message: error.message,
     });
-  } finally {
-    // 清理: 删除上传的文件
-    if (audioFilePath && fs.existsSync(audioFilePath)) {
-      fs.unlink(audioFilePath, (err) => {
-        if (err) console.error("删除文件错误:", err);
-      });
-    }
   }
 });
 
-// 新增：获取讯飞API签名URL的端点
-app.get("/api/get-xfyun-url", (req, res) => {
+// 获取Deepgram连接信息的端点
+app.get("/api/get-deepgram-url", (req, res) => {
   try {
-    // 生成带有签名的URL
-    const signedUrl = xfyunService.generateSignedUrl();
+    // 从查询参数获取自定义选项
+    let options = {};
+
+    // 获取语言设置
+    if (req.query.language) {
+      options.language = req.query.language;
+    } else if (SPEECH_LANGUAGE) {
+      options.language = SPEECH_LANGUAGE;
+    }
+
+    // 获取其他可能的参数
+    ['encoding', 'sample_rate', 'channels', 'model', 'interim_results', 'smart_format', 'punctuate', 'endpointing'].forEach(param => {
+      if (req.query[param] !== undefined) {
+        options[param] = req.query[param];
+      }
+    });
+
+    // 生成完整连接信息
+    const connectionInfo = deepgramService.generateConnectionInfo(options);
 
     // 返回给前端
-    res.json({ signedUrl });
+    res.json(connectionInfo);
   } catch (error) {
-    console.error("获取讯飞API URL错误:", error);
+    console.error("获取Deepgram连接信息错误:", error);
     res.status(500).json({
-      error: "生成讯飞API URL失败",
+      error: "生成Deepgram连接信息失败",
       message: error.message
     });
   }
@@ -251,7 +367,7 @@ app.get("/api/health", (req, res) => {
     message: "服务器正在运行",
     apiUrl: AI_API_URL,
     language: SPEECH_LANGUAGE,
-    xfyunConfigured: !!(process.env.XFYUN_API_KEY && process.env.XFYUN_API_SECRET && process.env.XFYUN_APP_ID),
+    deepgramConfigured: !!process.env.DEEPGRAM_API_KEY,
     timestamp: new Date().toISOString()
   };
 
@@ -279,10 +395,10 @@ app.listen(port, () => {
   console.log(`API URL: ${AI_API_URL}`);
   console.log(`语音语言: ${SPEECH_LANGUAGE}`);
 
-  if (process.env.XFYUN_API_KEY && process.env.XFYUN_API_SECRET && process.env.XFYUN_APP_ID) {
-    console.log("讯飞API配置已加载");
+  if (process.env.DEEPGRAM_API_KEY) {
+    console.log("Deepgram API配置已加载");
   } else {
-    console.log("警告: 讯飞API配置不完整或缺失");
+    console.log("警告: Deepgram API密钥未设置 (DEEPGRAM_API_KEY)");
   }
 
   // 检查 uploads 目录是否存在
