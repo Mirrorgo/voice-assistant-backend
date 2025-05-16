@@ -479,6 +479,7 @@ app.use((err, req, res, next) => {
 app.listen(port, () => {
   console.log(`Backend server running at http://localhost:${port}`);
   console.log(`Speech language: ${SPEECH_LANGUAGE}`);
+  console.log("version:1.0.0");
 
   if (process.env.DEEPGRAM_API_KEY) {
     console.log("Deepgram API configuration loaded");
