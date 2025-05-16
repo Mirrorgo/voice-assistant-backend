@@ -8,6 +8,7 @@ require("dotenv").config();
 // Import AI service and Deepgram service
 const AIService = require("./ai-service");
 const DeepgramService = require("./deepgram-service");
+const { version } = require("os");
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -454,7 +455,8 @@ app.get("/api/health", (req, res) => {
     message: "Server is running",
     language: SPEECH_LANGUAGE,
     deepgramConfigured: !!process.env.DEEPGRAM_API_KEY,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    version: "1.0.0"
   };
 
   // Check if API key exists
@@ -479,7 +481,6 @@ app.use((err, req, res, next) => {
 app.listen(port, () => {
   console.log(`Backend server running at http://localhost:${port}`);
   console.log(`Speech language: ${SPEECH_LANGUAGE}`);
-  console.log("version:1.0.0");
 
   if (process.env.DEEPGRAM_API_KEY) {
     console.log("Deepgram API configuration loaded");
