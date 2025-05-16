@@ -8,7 +8,6 @@ require("dotenv").config();
 // Import AI service and Deepgram service
 const AIService = require("./ai-service");
 const DeepgramService = require("./deepgram-service");
-const { version } = require("os");
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -20,10 +19,8 @@ app.use(express.json());
 // Environment variables
 const SPEECH_LANGUAGE = "en-US"; // Default language is English
 
-// Create AI service instance
+// Create service instances
 const aiService = new AIService();
-
-// Create Deepgram service instance
 const deepgramService = new DeepgramService();
 
 // Global alien state - maintained after server start
@@ -52,7 +49,7 @@ let isPendingRequest = false;
 let sequenceNumber = 1;
 let lastUpdatedTime = Date.now();
 
-// Get alien state function
+// State management functions
 function getAlienState() {
   return { ...globalAlienState }; // Return a copy to avoid direct modification
 }
@@ -62,10 +59,9 @@ function getOutputState() {
 }
 
 function getLatestTextResponse() {
-  return latestTextResponse; // Return the current text response
+  return latestTextResponse;
 }
 
-// Update alien state function
 function updateAlienState(newState) {
   Object.assign(globalAlienState, newState);
   lastUpdatedTime = Date.now();
@@ -90,7 +86,7 @@ function updateTextResponse(newText) {
 }
 
 function generateSystemPrompt(alienParams, environmentParams, promptType = "language") {
-  // 基本开头
+  // Base prompt
   let prompt = `You are an alien visitor to Earth with a distinct personality.
 
 CURRENT PERSONALITY PARAMETERS:
@@ -111,7 +107,7 @@ CURRENT ENVIRONMENTAL CONDITIONS:
 
 `;
 
-  // 基于不同类型添加特定的指令
+  // Add specific instructions based on prompt type
   if (promptType === "vocalization") {
     prompt += `INSTRUCTIONS:
 Generate a SHORT vocalization (alien sound) that expresses your current emotional state and reaction to the environment.
@@ -141,7 +137,7 @@ Based on the current personality parameters and environmental conditions:
 4. Do NOT generate any text or alien language - keep the text field empty
 `;
   } else {
-    // 默认是完整的语言模式
+    // Default language mode
     prompt += `INSTRUCTIONS:
 1. Respond to the human while roleplaying as an alien with the personality defined by these parameters.
 2. After each interaction, analyze how this interaction should affect your personality parameters.
@@ -181,7 +177,7 @@ ALIEN RESPONSE CONSIDERATIONS:
 `;
   }
 
-  // 添加通用的响应格式要求
+  // Add common response format requirements
   prompt += `
 RESPONSE FORMAT REQUIREMENT:
 You MUST format your response as a valid JSON object with ALL THREE of the following properties:
@@ -212,72 +208,64 @@ CRITICAL FORMATTING RULES:
 
   return prompt;
 }
-// Function to send text to AI with the new input/output format
-async function sendTextToAI(userText, environmentParams) {
-  console.log("Sending to text model...");
+
+// Unified function to send requests to AI with configurable prompt type
+async function sendToAI(userText, environmentParams, promptType = "language") {
+  console.log(`Sending to AI model (prompt type: ${promptType})...`);
 
   // Get current alien state
   const alienParams = getAlienState();
 
-  // Generate system prompt
-  const systemPrompt = generateSystemPrompt(alienParams, environmentParams);
+  // Generate appropriate system prompt based on promptType
+  const systemPrompt = generateSystemPrompt(alienParams, environmentParams, promptType);
   console.log("System prompt length:", systemPrompt?.length || 0);
 
-  // Build messages, including human input and alien parameter context
+  // Build messages object for AI service
   const messages = {
     systemPrompt,
-    userText,
-  }
+    userText: userText || ""
+  };
 
   try {
     // Record request start time
     const startTime = Date.now();
 
+    // Send request to AI service
     const aiResponse = await aiService.sendMessage(messages);
 
     // Record request end time and duration
     const endTime = Date.now();
     console.log(`Model response time: ${endTime - startTime}ms`);
+    console.log("AI model response received");
 
-    console.log("Text model response received");
-
-    // Convert response format and update alien state if needed
+    // Process response if successful
     if (aiResponse.success) {
-      let result;
+      // Ensure we have a correctly formatted response or use defaults
+      const result = aiResponse.alien ? aiResponse : {
+        alien: alienParams, // Maintain current state if missing
+        output: aiResponse.output || {
+          rgbRed: 100,
+          rgbGreen: 100,
+          rgbBlue: 200
+        },
+        text: aiResponse.text || aiResponse.content ||
+          (promptType === "vocalization" ? "Kiki?" :
+            promptType === "parameters" ? "" : "Melu kibo?")
+      };
 
-      // Ensure we have a correctly formatted response
-      if (aiResponse.alien) {
-        result = aiResponse;
-      } else {
-        // Default values when data is missing
-        result = {
-          alien: alienParams, // Maintain current state
-          output: {
-            rgbRed: 100,
-            rgbGreen: 100,
-            rgbBlue: 200
-          },
-          text: aiResponse.text || aiResponse.content || "Communication error"
-        };
-      }
+      // Update server-side states
+      if (result.alien) updateAlienState(result.alien);
+      if (result.output) updateOutputState(result.output);
 
-      // Update our server-side stored alien state
-      if (result.alien) {
-        updateAlienState(result.alien);
-      }
-      // Update output state
-      if (result.output) {
-        updateOutputState(result.output);
-      }
-      // Update text response
-      if (result.text) {
+      // Only update text for non-parameter requests
+      if (result.text && promptType !== "parameters") {
         updateTextResponse(result.text);
       }
 
       return result;
     }
 
-    // Directly return the result provided by the AI service
+    // Return the original response if not successful
     return aiResponse;
   } catch (error) {
     console.error("AI processing error:", error);
@@ -285,15 +273,36 @@ async function sendTextToAI(userText, environmentParams) {
   }
 }
 
+// Process alien API requests asynchronously without blocking response
+function processAlienRequest(text, params, promptType) {
+  if (isPendingRequest) return false;
+
+  isPendingRequest = true;
+
+  // Use async IIFE to handle the AI request
+  (async () => {
+    try {
+      await sendToAI(text, params, promptType);
+    } catch (error) {
+      console.error(`Error processing ${promptType} request:`, error);
+    } finally {
+      isPendingRequest = false;
+    }
+  })();
+
+  return true;
+}
+
 // Unified alien API endpoint - handles all alien-related requests
 app.post("/api/alien", async (req, res) => {
   try {
-    // 从请求中提取参数
+    // Extract parameters from request
     const { text, params, changed, reset, sound } = req.body;
     console.log("Received request parameters:", { text, params, changed, reset, sound });
 
-    // 如果有重置请求，重置外星人状态
+    // Handle reset request
     if (reset) {
+      // Reset alien state to defaults
       globalAlienState.happiness = 50;
       globalAlienState.energy = 70;
       globalAlienState.curiosity = 90;
@@ -303,12 +312,15 @@ app.post("/api/alien", async (req, res) => {
       globalAlienState.confusion = 80;
       globalAlienState.intelligence = 95;
 
+      // Reset output state
       globalOutput.rgbRed = 100;
       globalOutput.rgbGreen = 100;
       globalOutput.rgbBlue = 200;
 
+      // Reset text response
       latestTextResponse = "Kibo melu pati? Tapi zuna reboot!";
 
+      // Update sequence and timestamp
       sequenceNumber++;
       lastUpdatedTime = Date.now();
 
@@ -323,82 +335,26 @@ app.post("/api/alien", async (req, res) => {
       });
     }
 
-    // 如果有参数变更请求并且没有待处理请求，处理输入
+    // Process change request if needed
     if (changed && !isPendingRequest) {
-      // 设置待处理标志，防止启动多个请求
-      if (sound === "vocalization" || sound === "language" || !sound) {
-        // 确定提示词类型
-        let promptType;
-        let userText = "";
+      // Determine prompt type based on sound parameter
+      let promptType = "parameters"; // Default
 
-        if (sound === "vocalization") {
-          promptType = "vocalization";
-          // 叫声不需要输入文本
-        } else if (sound === "language") {
-          promptType = "language";
-          // 语言模式使用用户提供的文本
-          userText = text || "?";  // 如果没有文本则使用默认值
-        } else {
-          promptType = "parameters";
-          // 仅参数变化，不需要文本
-        }
-
-        // 使用异步函数处理 AI 请求
-        (async () => {
-          try {
-            // 如果是标准语言模式且有文本输入，使用现有函数
-            if (sound === "language" && userText) {
-              await sendTextToAI(userText, params);
-            } else {
-              // 其他情况使用定制提示词
-              const customPrompt = generateSystemPrompt(getAlienState(), params, promptType);
-
-              const messages = {
-                systemPrompt: customPrompt,
-                userText: userText
-              };
-
-              const aiResponse = await aiService.sendMessage(messages);
-
-              // 处理响应
-              if (aiResponse.success) {
-                let result;
-                if (aiResponse.alien) {
-                  result = aiResponse;
-                } else {
-                  // 默认值处理
-                  result = {
-                    alien: getAlienState(),
-                    output: getOutputState(),
-                    text: promptType === "parameters" ? "" : (aiResponse.text || aiResponse.content || (promptType === "vocalization" ? "Kiki?" : "Melu kibo?"))
-                  };
-                }
-
-                // 更新状态
-                if (result.alien) updateAlienState(result.alien);
-                if (result.output) updateOutputState(result.output);
-                // 只有在非参数模式下才更新文本
-                if (result.text && promptType !== "parameters") updateTextResponse(result.text);
-              }
-            }
-          } catch (error) {
-            console.error(`处理${promptType}请求时出错:`, error);
-          } finally {
-            isPendingRequest = false;
-          }
-        })();
+      if (sound === "vocalization") {
+        promptType = "vocalization";
+      } else if (sound === "language") {
+        promptType = "language";
       }
+
+      // Process the request asynchronously
+      processAlienRequest(text, params, promptType);
     }
 
-    // 始终立即返回当前状态
-    const alienState = getAlienState();
-    const outputState = getOutputState();
-    const currentText = getLatestTextResponse();
-
+    // Always immediately return current state
     res.json({
-      alien: alienState,
-      output: outputState,
-      text: currentText,
+      alien: getAlienState(),
+      output: getOutputState(),
+      text: getLatestTextResponse(),
       success: true,
       sequence: sequenceNumber,
       timestamp: lastUpdatedTime,
@@ -406,9 +362,9 @@ app.post("/api/alien", async (req, res) => {
     });
 
   } catch (error) {
-    console.error("处理外星人请求时出错:", error);
+    console.error("Error processing alien request:", error);
     return res.status(500).json({
-      error: "服务器错误",
+      error: "Server error",
       message: error.message,
     });
   }
@@ -418,14 +374,10 @@ app.post("/api/alien", async (req, res) => {
 app.get("/api/get-deepgram-url", (req, res) => {
   try {
     // Get custom options from query parameters
-    let options = {};
+    const options = {};
 
     // Get language setting
-    if (req.query.language) {
-      options.language = req.query.language;
-    } else if (SPEECH_LANGUAGE) {
-      options.language = SPEECH_LANGUAGE;
-    }
+    options.language = req.query.language || SPEECH_LANGUAGE;
 
     // Get other possible parameters
     ['encoding', 'sample_rate', 'channels', 'model', 'interim_results', 'smart_format', 'punctuate', 'endpointing'].forEach(param => {
