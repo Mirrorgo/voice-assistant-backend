@@ -4,6 +4,8 @@ const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
 require("dotenv").config();
+const ElevenLabsService = require("./elevenlabs-service");
+
 
 // Import AI service and Deepgram service
 const AIService = require("./ai-service");
@@ -11,6 +13,8 @@ const DeepgramService = require("./deepgram-service");
 
 const app = express();
 const port = process.env.PORT || 3001;
+
+const elevenLabsService = new ElevenLabsService();
 
 // Middleware
 app.use(cors());
@@ -23,65 +27,60 @@ const SPEECH_LANGUAGE = "en-US"; // Default language is English
 const aiService = new AIService();
 const deepgramService = new DeepgramService();
 
-// Global alien state - maintained after server start
-const globalAlienState = {
-  happiness: 50,
-  energy: 70,
-  curiosity: 90,
-  trust: 30,
-  sociability: 60,
-  patience: 40,
-  confusion: 80,
-  intelligence: 95
+// 全局状态管理
+const globalState = {
+  // 外星人情绪参数
+  alienState: {
+    happiness: 50,
+    energy: 70,
+    curiosity: 90,
+    trust: 30,
+    sociability: 60,
+    patience: 40,
+    confusion: 80,
+    intelligence: 95
+  },
+
+  // 输出参数
+  outputState: {
+    rgbRed: 100,
+    rgbGreen: 100,
+    rgbBlue: 200
+  },
+
+  // 文本和音频状态
+  textContent: "",        // 当前显示的文本
+  audioPath: null,        // 当前音频文件路径
+  audioId: 0,             // 音频唯一标识，每次更新递增
+
+  // 控制和跟踪
+  sequence: 1,            // 全局序列号
+  lastUpdatedTime: Date.now(),  // 上次更新时间戳
+
+  // 处理状态标志
+  isPendingRequest: false // 是否有正在处理的请求
 };
-
-const globalOutput = {
-  rgbRed: 100,
-  rgbGreen: 100,
-  rgbBlue: 200
-};
-
-// Store the latest text response
-let latestTextResponse = "";
-
-// Pending API request flag and sequence counter
-let isPendingRequest = false;
-let sequenceNumber = 1;
-let lastUpdatedTime = Date.now();
-
-// State management functions
-function getAlienState() {
-  return { ...globalAlienState }; // Return a copy to avoid direct modification
-}
-
-function getOutputState() {
-  return { ...globalOutput }; // Return a copy to avoid direct modification
-}
-
-function getLatestTextResponse() {
-  return latestTextResponse;
-}
 
 function updateAlienState(newState) {
-  Object.assign(globalAlienState, newState);
-  lastUpdatedTime = Date.now();
-  sequenceNumber++;
-  console.log("Alien state updated:", globalAlienState);
+  Object.assign(globalState.alienState, newState);
+  globalState.lastUpdatedTime = Date.now();
+  globalState.sequence++;
+  console.log("Alien state updated:", globalState.alienState);
 }
 
 function updateOutputState(newOutput) {
-  Object.assign(globalOutput, newOutput);
-  lastUpdatedTime = Date.now();
-  sequenceNumber++;
-  console.log("Alien output state updated:", globalOutput);
+  Object.assign(globalState.outputState, newOutput);
+  globalState.lastUpdatedTime = Date.now();
+  globalState.sequence++;
+  console.log("Alien output state updated:", globalState.outputState);
 }
 
 function updateTextResponse(newText) {
   if (newText && newText.trim() !== "") {
-    latestTextResponse = newText;
-    lastUpdatedTime = Date.now();
-    sequenceNumber++;
-    console.log("New alien text response:", latestTextResponse);
+    globalState.textContent = newText;
+    globalState.lastUpdatedTime = Date.now();
+    globalState.sequence++;
+    console.log("New alien text response:", globalState.textContent);
   }
 }
 
@@ -213,36 +212,45 @@ CRITICAL FORMATTING RULES:
 async function sendToAI(userText, environmentParams, promptType = "language") {
   console.log(`Sending to AI model (prompt type: ${promptType})...`);
 
-  // Get current alien state
-  const alienParams = getAlienState();
+  // 获取当前外星人状态
+  const alienParams = {
+    happiness: globalState.alienState.happiness,
+    energy: globalState.alienState.energy,
+    curiosity: globalState.alienState.curiosity,
+    trust: globalState.alienState.trust,
+    sociability: globalState.alienState.sociability,
+    patience: globalState.alienState.patience,
+    confusion: globalState.alienState.confusion,
+    intelligence: globalState.alienState.intelligence
+  };
 
-  // Generate appropriate system prompt based on promptType
+  // 根据promptType生成适当的系统提示
   const systemPrompt = generateSystemPrompt(alienParams, environmentParams, promptType);
   console.log("System prompt length:", systemPrompt?.length || 0);
 
-  // Build messages object for AI service
+  // 构建消息对象
   const messages = {
     systemPrompt,
     userText: userText || ""
   };
 
   try {
-    // Record request start time
+    // 记录请求开始时间
     const startTime = Date.now();
 
-    // Send request to AI service
+    // 发送请求到AI服务
     const aiResponse = await aiService.sendMessage(messages);
 
-    // Record request end time and duration
+    // 记录请求结束时间和持续时间
     const endTime = Date.now();
     console.log(`Model response time: ${endTime - startTime}ms`);
     console.log("AI model response received");
 
-    // Process response if successful
+    // 处理响应
     if (aiResponse.success) {
-      // Ensure we have a correctly formatted response or use defaults
-      const result = aiResponse.alien ? aiResponse : {
-        alien: alienParams, // Maintain current state if missing
+      // 确保我们有一个格式正确的响应，否则使用默认值
+      return aiResponse.alien ? aiResponse : {
+        alien: alienParams, // 如果缺失，维持当前状态
         output: aiResponse.output || {
           rgbRed: 100,
           rgbGreen: 100,
@@ -250,22 +258,12 @@ async function sendToAI(userText, environmentParams, promptType = "language") {
         },
         text: aiResponse.text || aiResponse.content ||
           (promptType === "vocalization" ? "Kiki?" :
-            promptType === "parameters" ? "" : "Melu kibo?")
+            promptType === "parameters" ? "" : "Melu kibo?"),
+        success: true
       };
-
-      // Update server-side states
-      if (result.alien) updateAlienState(result.alien);
-      if (result.output) updateOutputState(result.output);
-
-      // Only update text for non-parameter requests
-      if (result.text && promptType !== "parameters") {
-        updateTextResponse(result.text);
-      }
-
-      return result;
     }
 
-    // Return the original response if not successful
+    // 如果不成功，返回原始响应
     return aiResponse;
   } catch (error) {
     console.error("AI processing error:", error);
@@ -275,22 +273,87 @@ async function sendToAI(userText, environmentParams, promptType = "language") {
 
 // Process alien API requests asynchronously without blocking response
 function processAlienRequest(text, params, promptType) {
-  if (isPendingRequest) return false;
+  if (globalState.isPendingRequest) return false;
 
-  isPendingRequest = true;
+  globalState.isPendingRequest = true;
 
   // Use async IIFE to handle the AI request
   (async () => {
     try {
-      await sendToAI(text, params, promptType);
+      // 1. 异步调用AI模型获取响应
+      const aiResponse = await sendToAI(text, params, promptType);
+
+      // 2. 更新AI返回的参数
+      if (aiResponse.alien) {
+        // 更新外星人状态
+        Object.assign(globalState.alienState, aiResponse.alien);
+        // 更新序列号和时间戳
+        globalState.sequence++;
+        globalState.lastUpdatedTime = Date.now();
+        console.log("外星人状态已更新:", globalState.alienState);
+      }
+
+      if (aiResponse.output) {
+        // 更新输出参数
+        Object.assign(globalState.outputState, aiResponse.output);
+        // 更新序列号和时间戳
+        globalState.sequence++;
+        globalState.lastUpdatedTime = Date.now();
+        console.log("输出参数已更新:", globalState.outputState);
+      }
+
+      // 3. 处理文本响应和音频生成 (如果有文本且不是参数模式)
+      if (aiResponse.text && promptType !== "parameters") {
+        try {
+          // 异步生成音频
+          const audioPath = await generateAudioFile(aiResponse.text);
+
+          // 音频生成完成后，同步更新文本和音频状态
+          globalState.textContent = aiResponse.text;
+          globalState.audioPath = audioPath;
+          globalState.audioId++; // 递增音频ID
+
+          // 更新序列号和时间戳
+          globalState.sequence++;
+          globalState.lastUpdatedTime = Date.now();
+
+          console.log("文本和音频已更新:", {
+            text: aiResponse.text.substring(0, 30) + "...",
+            audioPath
+          });
+        } catch (error) {
+          console.error("音频生成失败:", error);
+          // 即使音频生成失败，也不阻止其他状态更新
+        }
+      }
     } catch (error) {
       console.error(`Error processing ${promptType} request:`, error);
     } finally {
-      isPendingRequest = false;
+      globalState.isPendingRequest = false;
     }
   })();
 
   return true;
+}
+
+async function generateAudioFile(text) {
+  try {
+    // 获取外星人语音选项
+    const alienVoiceOptions = elevenLabsService.getAlienVoiceOptions(globalState.alienState);
+
+    // 生成唯一文件名 - 使用.mp3扩展名(ElevenLabs默认返回MP3)
+    const fileName = `alien_speech_${Date.now()}.mp3`;
+    const filePath = path.join(__dirname, "public", "audio", fileName);
+
+    // 调用ElevenLabs TTS生成音频
+    await elevenLabsService.textToSpeechFile(text, filePath, alienVoiceOptions);
+
+    // 返回相对路径
+    return `/audio/${fileName}`;
+  } catch (error) {
+    console.error("生成音频文件失败:", error);
+    throw error;
+  }
 }
 
 // Unified alien API endpoint - handles all alien-related requests
@@ -302,41 +365,32 @@ app.post("/api/alien", async (req, res) => {
 
     // Handle reset request
     if (reset) {
-      // Reset alien state to defaults
-      globalAlienState.happiness = 50;
-      globalAlienState.energy = 70;
-      globalAlienState.curiosity = 90;
-      globalAlienState.trust = 30;
-      globalAlienState.sociability = 60;
-      globalAlienState.patience = 40;
-      globalAlienState.confusion = 80;
-      globalAlienState.intelligence = 95;
+      globalState.alienState = {
+        happiness: 50,
+        energy: 70,
+        curiosity: 90,
+        trust: 30,
+        sociability: 60,
+        patience: 40,
+        confusion: 80,
+        intelligence: 95
+      }
+      globalState.outputState = {
+        rgbRed: 100,
+        rgbGreen: 100,
+        rgbBlue: 200
+      };
 
-      // Reset output state
-      globalOutput.rgbRed = 100;
-      globalOutput.rgbGreen = 100;
-      globalOutput.rgbBlue = 200;
 
-      // Reset text response
-      latestTextResponse = "Kibo melu pati? Tapi zuna reboot!";
+      globalState.textContent = "Kibo melu pati? Tapi zuna reboot!";
+      globalState.audioPath = null;
 
-      // Update sequence and timestamp
-      sequenceNumber++;
-      lastUpdatedTime = Date.now();
-
-      return res.json({
-        message: "Alien state reset",
-        success: true,
-        alien: getAlienState(),
-        output: getOutputState(),
-        text: latestTextResponse,
-        sequence: sequenceNumber,
-        timestamp: lastUpdatedTime
-      });
+      globalState.sequence++;
+      globalState.lastUpdatedTime = Date.now();
     }
 
     // Process change request if needed
-    if (changed && !isPendingRequest) {
+    if (changed) {
       // Determine prompt type based on sound parameter
       let promptType = "parameters"; // Default
 
@@ -348,17 +402,22 @@ app.post("/api/alien", async (req, res) => {
 
       // Process the request asynchronously
       processAlienRequest(text, params, promptType);
+
     }
 
     // Always immediately return current state
     res.json({
-      alien: getAlienState(),
-      output: getOutputState(),
-      text: getLatestTextResponse(),
+      alien: { ...globalState.alienState },
+      output: { ...globalState.outputState },
+      text: globalState.textContent,
+      audio: {
+        path: globalState.audioPath,
+        id: globalState.audioId
+      },
       success: true,
-      sequence: sequenceNumber,
-      timestamp: lastUpdatedTime,
-      isPending: isPendingRequest
+      sequence: globalState.sequence,
+      timestamp: globalState.lastUpdatedTime,
+      isPending: globalState.isPendingRequest
     });
 
   } catch (error) {
@@ -420,6 +479,9 @@ app.get("/api/health", (req, res) => {
   res.json(healthStatus);
 });
 
+app.use('/audio', express.static(path.join(__dirname, 'public/audio')));
+
+
 // Global error handling
 app.use((err, req, res, next) => {
   console.error("Uncaught error:", err);
@@ -428,6 +490,7 @@ app.use((err, req, res, next) => {
     message: process.env.NODE_ENV === 'production' ? "Please try again later" : err.message
   });
 });
+
 
 // Start server
 app.listen(port, () => {
@@ -440,10 +503,49 @@ app.listen(port, () => {
     console.log("Warning: Deepgram API key not set (DEEPGRAM_API_KEY)");
   }
 
-  // Check if uploads directory exists
-  const uploadDir = path.join(__dirname, "uploads");
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir);
-    console.log("Created uploads directory:", uploadDir);
+  const audioDir = path.join(__dirname, "public", "audio");
+  if (!fs.existsSync(audioDir)) {
+    fs.mkdirSync(audioDir, { recursive: true });
+    console.log("Created audio directory:", audioDir);
   }
+
+  // 启动定期清理音频文件的任务
+  const CLEANUP_INTERVAL = 60 * 60 * 1000; // 1小时执行一次
+  const MAX_FILE_AGE = 24 * 60 * 60 * 1000; // 保留24小时
+
+  console.log("Starting periodic audio file cleanup job");
+
+  setInterval(async () => {
+    try {
+      console.log("Running audio file cleanup...");
+
+      const files = await fs.promises.readdir(audioDir);
+      const now = Date.now();
+      let cleanedCount = 0;
+
+      for (const file of files) {
+        // 跳过当前正在使用的文件
+        if (globalState.audioPath && globalState.audioPath.includes(file)) {
+          continue;
+        }
+
+        const filePath = path.join(audioDir, file);
+        const stats = await fs.promises.stat(filePath);
+
+        // 删除超过指定时间的文件
+        if (now - stats.mtime.getTime() > MAX_FILE_AGE) {
+          await fs.promises.unlink(filePath);
+          cleanedCount++;
+        }
+      }
+
+      if (cleanedCount > 0) {
+        console.log(`Cleanup completed: Removed ${cleanedCount} expired audio files`);
+      } else {
+        console.log("Cleanup completed: No expired audio files found");
+      }
+    } catch (error) {
+      console.error("Error during audio file cleanup:", error);
+    }
+  }, CLEANUP_INTERVAL);
 });
