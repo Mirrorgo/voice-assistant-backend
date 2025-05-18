@@ -38,7 +38,8 @@ const globalState = {
     sociability: 60,
     patience: 40,
     confusion: 80,
-    intelligence: 95
+    intelligence: 95,
+    anger: 10
   },
 
   // 输出参数
@@ -61,28 +62,6 @@ const globalState = {
   isPendingRequest: false // 是否有正在处理的请求
 };
 
-function updateAlienState(newState) {
-  Object.assign(globalState.alienState, newState);
-  globalState.lastUpdatedTime = Date.now();
-  globalState.sequence++;
-  console.log("Alien state updated:", globalState.alienState);
-}
-
-function updateOutputState(newOutput) {
-  Object.assign(globalState.outputState, newOutput);
-  globalState.lastUpdatedTime = Date.now();
-  globalState.sequence++;
-  console.log("Alien output state updated:", globalState.outputState);
-}
-
-function updateTextResponse(newText) {
-  if (newText && newText.trim() !== "") {
-    globalState.textContent = newText;
-    globalState.lastUpdatedTime = Date.now();
-    globalState.sequence++;
-    console.log("New alien text response:", globalState.textContent);
-  }
-}
 
 function generateSystemPrompt(alienParams, environmentParams, promptType = "language") {
   // Base prompt
@@ -97,6 +76,7 @@ CURRENT PERSONALITY PARAMETERS:
 - Patience: ${alienParams.patience}/100 (How patient you are)
 - Confusion: ${alienParams.confusion}/100 (How confused you are by humans)
 - Intelligence: ${alienParams.intelligence}/100 (Your intelligence level)
+- Anger: ${alienParams.anger}/100 (How annoyed or upset you feel)
 
 CURRENT ENVIRONMENTAL CONDITIONS:
 - Distance: ${environmentParams.distance} cm (How close the human is to you)
@@ -121,6 +101,7 @@ ALIEN VOCALIZATION GUIDELINES:
   - Alarmed: "Zak!" "Pik!" (sharp, short sounds)
   - Calm: "Mooo" "Vuuu" (longer, flowing sounds)
   - Sleepy: "Zuuu" "Muuu" (drawn-out sounds)
+  - Angry: "Grrr!" "Kzzt!" (harsh, guttural sounds)
 
 Based on your current personality state and the environmental conditions:
 1. Generate ONLY a very short vocalization (1-2 words)
@@ -163,6 +144,7 @@ ALIEN RESPONSE CONSIDERATIONS:
   - When confused: Use erratic patterns and repeated syllables like "ki-ki-ki", "zut-zut?"
   - When scared: Use shorter, sharper sounds like "tek!", "pi!", "zak!"
   - When calm: Use longer, flowing phrases with soft consonants like "molu vani teepi"
+  - When angry: Use harsh, guttural sounds like "grrak!", "zzkt!", "vrrr!"
 - Trust increases with gentle touches but decreases with forceful ones
 - You prefer moderate temperatures (15-25°C)
 - You're cautious when humans get too close (< 30cm) unless trust is high
@@ -170,7 +152,7 @@ ALIEN RESPONSE CONSIDERATIONS:
 - Your colors shift toward:
   - Blue tones when calm or sad
   - Green tones when curious or content
-  - Red tones when alarmed or excited
+  - Red tones when alarmed, excited or angry
   - Purple tones when confused
   - Yellow tones when happy
 `;
@@ -190,7 +172,8 @@ You MUST format your response as a valid JSON object with ALL THREE of the follo
     "sociability": 58,
     "patience": 45,
     "confusion": 75,
-    "intelligence": 95
+    "intelligence": 95,
+    "anger": 10
   },
   "output": {
     "rgbRed": 120,
@@ -221,7 +204,8 @@ async function sendToAI(userText, environmentParams, promptType = "language") {
     sociability: globalState.alienState.sociability,
     patience: globalState.alienState.patience,
     confusion: globalState.alienState.confusion,
-    intelligence: globalState.alienState.intelligence
+    intelligence: globalState.alienState.intelligence,
+    anger: globalState.alienState.anger
   };
 
   // 根据promptType生成适当的系统提示
@@ -360,8 +344,8 @@ async function generateAudioFile(text) {
 app.post("/api/alien", async (req, res) => {
   try {
     // Extract parameters from request
-    const { text, params, changed, reset, sound } = req.body;
-    console.log("Received request parameters:", { text, params, changed, reset, sound });
+    const { text, params, changed, reset, sound, source } = req.body;
+    console.log("Received request parameters:", { text, params, changed, reset, sound, source });
 
     // Handle reset request
     if (reset) {
@@ -373,7 +357,8 @@ app.post("/api/alien", async (req, res) => {
         sociability: 60,
         patience: 40,
         confusion: 80,
-        intelligence: 95
+        intelligence: 95,
+        anger: 10
       }
       globalState.outputState = {
         rgbRed: 100,
