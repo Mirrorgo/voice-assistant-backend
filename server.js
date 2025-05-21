@@ -427,6 +427,13 @@ app.post("/api/alien", async (req, res) => {
         promptType = "language";
       }
 
+      globalState.inputState = {
+        distance: params.distance,
+        force: params.force,
+        motion: params.motion,
+        temperature: params.temperature,
+        areaTouched: params.areaTouched
+      }
       // Process the request asynchronously
       processAlienRequest(text, params, promptType);
 
