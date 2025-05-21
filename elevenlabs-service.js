@@ -133,47 +133,222 @@ class ElevenLabsService {
    * @param {Object} alienState 外星人情绪状态
    * @returns {Object} 定制的TTS选项
    */
+  /**
+  * 配置外星宠物语音特性的TTS选项，基于前端计算的主导情绪
+  * @param {Object} alienState 外星宠物情绪状态
+  * @returns {Object} 定制的TTS选项
+  */
   getAlienVoiceOptions(alienState) {
-    // 基于外星人情绪状态调整声音设置
-    let stability = 0.5;
-    let similarity_boost = 0.75;
-    let style = 0.5;
+    // 基础语音参数
+    let stability = 0.5;        // 声音稳定性
+    let similarity_boost = 0.5; // 相似度提升
+    let style = 0.5;            // 风格强度
+    let speed = 1.0;            // 语速调整
 
-    // 高兴度影响声音风格 - 越高兴声音风格越明显
-    if (alienState.happiness > 70) {
-      style += 0.3;  // 很高兴 → 更夸张的声音风格
-    } else if (alienState.happiness < 30) {
-      style -= 0.2;  // 不高兴 → 较少的声音风格表现
+    // 计算每种情绪得分，与前端逻辑保持一致
+    const happyScore =
+      0.5 * alienState.happiness +
+      0.3 * alienState.trust +
+      0.2 * alienState.energy;
+
+    const sadScore =
+      0.5 * (100 - alienState.happiness) +
+      0.3 * (100 - alienState.trust) +
+      0.2 * (100 - alienState.energy);
+
+    const curiousScore =
+      0.5 * alienState.curiosity +
+      0.3 * alienState.intelligence +
+      0.2 * alienState.energy;
+
+    const sleepyScore =
+      0.7 * (100 - alienState.energy) +
+      0.3 * alienState.patience;
+
+    const confusedScore =
+      0.6 * alienState.confusion +
+      0.4 * (100 - alienState.intelligence);
+
+    const madScore =
+      0.3 * (100 - alienState.patience) +
+      0.5 * alienState.anger +
+      0.2 * (100 - alienState.trust);
+
+    const scaredScore =
+      0.3 * (100 - alienState.trust) +
+      0.5 * (100 - alienState.sociability) +
+      0.1 * (100 - alienState.energy) +
+      0.1 * (100 - alienState.happiness);
+
+    // 情绪得分及对应名称
+    const emotions = [
+      { name: "happy", score: happyScore },
+      { name: "sad", score: sadScore },
+      { name: "curious", score: curiousScore },
+      { name: "sleepy", score: sleepyScore },
+      { name: "confused", score: confusedScore },
+      { name: "mad", score: madScore },
+      { name: "scared", score: scaredScore }
+    ];
+
+    // 找出得分最高的情绪
+    const dominantEmotion = emotions.reduce((prev, current) =>
+      (prev.score > current.score) ? prev : current
+    );
+
+    // 次高分情绪（用于混合情绪状态）
+    emotions.sort((a, b) => b.score - a.score);
+    const secondaryEmotion = emotions[1];
+
+    // 计算主导情绪的强度（与次高情绪的分差）
+    const emotionIntensity = Math.min(1, (dominantEmotion.score - secondaryEmotion.score) / 30);
+
+    // 记录主导情绪和强度
+    console.log(`主导情绪: ${dominantEmotion.name}, 得分: ${dominantEmotion.score.toFixed(1)}, 强度: ${emotionIntensity.toFixed(2)}`);
+    console.log(`次要情绪: ${secondaryEmotion.name}, 得分: ${secondaryEmotion.score.toFixed(1)}`);
+
+    // 根据主导情绪设置语音参数
+    switch (dominantEmotion.name) {
+      case "happy":
+        // 快乐：稳定、响亮、有活力的声音
+        stability = 0.7 + (emotionIntensity * 0.2);      // 0.7-0.9，非常稳定
+        similarity_boost = 0.6 + (emotionIntensity * 0.2); // 0.6-0.8，较高的相似度
+        style = 0.7 + (emotionIntensity * 0.3);          // 0.7-1.0，高度风格化，活泼
+        speed = 1.15 + (emotionIntensity * 0.2);         // 1.15-1.35，稍快的语速
+        break;
+
+      case "sad":
+        // 悲伤：稳定但略低沉的声音，语速稍慢
+        stability = 0.6 + (emotionIntensity * 0.2);      // 0.6-0.8，较稳定
+        similarity_boost = 0.4 - (emotionIntensity * 0.2); // 0.4-0.2，相似度较低
+        style = 0.4 - (emotionIntensity * 0.2);          // 0.4-0.2，风格弱化
+        speed = 0.9 - (emotionIntensity * 0.15);         // 0.9-0.75，语速较慢
+        break;
+
+      case "curious":
+        // 好奇：活跃、变化多的声音，语调上扬
+        stability = 0.5 - (emotionIntensity * 0.1);      // 0.5-0.4，适中稳定性
+        similarity_boost = 0.6 + (emotionIntensity * 0.2); // 0.6-0.8，较高相似度
+        style = 0.8 + (emotionIntensity * 0.2);          // 0.8-1.0，高度风格化，探索性
+        speed = 1.1 + (emotionIntensity * 0.15);         // 1.1-1.25，稍快语速
+        break;
+
+      case "sleepy":
+        // 困倦：非常稳定、缓慢的声音
+        stability = 0.8 + (emotionIntensity * 0.2);      // 0.8-1.0，极度稳定
+        similarity_boost = 0.3;                          // 保持中低相似度
+        style = 0.3 - (emotionIntensity * 0.15);         // 0.3-0.15，弱风格
+        speed = 0.8 - (emotionIntensity * 0.2);          // 0.8-0.6，很慢的语速
+        break;
+
+      case "confused":
+        // 困惑：不稳定、断断续续的声音，不规则节奏
+        stability = 0.4 - (emotionIntensity * 0.2);      // 0.4-0.2，不稳定
+        similarity_boost = 0.3 + (emotionIntensity * 0.1); // 0.3-0.4，中等相似度
+        style = 0.6 + (emotionIntensity * 0.2);          // 0.6-0.8，较高风格，怪异感
+        speed = 0.95 + (Math.random() * 0.2 - 0.1);      // 0.85-1.05，不规则语速
+        break;
+
+      case "mad":
+        // 愤怒：极不稳定、高强度、速度可快可慢
+        stability = 0.3 - (emotionIntensity * 0.2);      // 0.3-0.1，极不稳定
+        similarity_boost = 0.7 + (emotionIntensity * 0.3); // 0.7-1.0，高相似度，保持独特性
+        style = 0.8 + (emotionIntensity * 0.2);          // 0.8-1.0，极高风格，强烈情感
+
+        // 愤怒时语速根据能量决定：高能量快速，低能量缓慢但重音强
+        if (alienState.energy > 50) {
+          speed = 1.2 + (emotionIntensity * 0.3);        // 1.2-1.5，急促语速
+        } else {
+          speed = 0.9 - (emotionIntensity * 0.1);        // 0.9-0.8，缓慢但重语速
+        }
+        break;
+
+      case "scared":
+        // 害怕：不稳定、颤抖的声音，语速快且急促
+        stability = 0.3 - (emotionIntensity * 0.15);     // 0.3-0.15，不稳定
+        similarity_boost = 0.5 - (emotionIntensity * 0.2); // 0.5-0.3，较低相似度
+        style = 0.7 - (emotionIntensity * 0.2);          // 0.7-0.5，中等风格
+        speed = 1.2 + (emotionIntensity * 0.3);          // 1.2-1.5，快速语速，急促感
+        break;
+
+      default:
+        // 默认中性状态，适中参数
+        break;
     }
 
-    // 能量影响声音相似度 - 越有能量相似度越高
-    if (alienState.energy > 70) {
-      similarity_boost += 0.2;  // 精力充沛 → 声音更加特征化
-    } else if (alienState.energy < 30) {
-      similarity_boost -= 0.2;  // 能量低 → 声音更标准
+    // 混合情绪影响（当主导情绪不是特别强烈时）
+    if (emotionIntensity < 0.5) {
+      // 如果主导情绪不明显，则次要情绪也会影响声音
+      const blendFactor = 0.3 * (1 - emotionIntensity); // 混合强度
+
+      switch (secondaryEmotion.name) {
+        case "happy":
+          stability += blendFactor * 0.1;
+          style += blendFactor * 0.1;
+          speed += blendFactor * 0.1;
+          break;
+
+        case "sad":
+          speed -= blendFactor * 0.1;
+          style -= blendFactor * 0.1;
+          break;
+
+        case "curious":
+          style += blendFactor * 0.1;
+          stability -= blendFactor * 0.05;
+          break;
+
+        case "sleepy":
+          speed -= blendFactor * 0.15;
+          break;
+
+        case "confused":
+          stability -= blendFactor * 0.1;
+          break;
+
+        case "mad":
+          stability -= blendFactor * 0.1;
+          style += blendFactor * 0.1;
+          break;
+
+        case "scared":
+          speed += blendFactor * 0.1;
+          stability -= blendFactor * 0.05;
+          break;
+      }
     }
 
-    // 信任影响稳定性 - 信任度高时声音更稳定
-    if (alienState.trust > 70) {
-      stability += 0.2;  // 信任度高 → 声音稳定
-    } else if (alienState.trust < 30) {
-      stability -= 0.2;  // 信任度低 → 声音变化更大
-    }
-
-    // 确保值在有效范围内(ElevenLabs的参数范围是0-1)
-    stability = Math.max(0, Math.min(1, stability));
+    // 确保所有值在ElevenLabs的合法范围内
+    stability = Math.max(0.1, Math.min(1, stability));
     similarity_boost = Math.max(0, Math.min(1, similarity_boost));
     style = Math.max(0, Math.min(1, style));
 
-    // 返回定制选项
+    // 语速约束，不同情绪有不同的语速范围
+    let speedMin = 0.5;
+    let speedMax = 2.0;
+
+    // 为某些情绪调整语速极限
+    if (dominantEmotion.name === "sleepy") {
+      speedMin = 0.3;
+      speedMax = 1.0;
+    } else if (dominantEmotion.name === "mad" || dominantEmotion.name === "scared") {
+      speedMin = 0.5;
+      speedMax = 2.5;
+    }
+
+    speed = Math.max(speedMin, Math.min(speedMax, speed));
+
+    // 返回定制的TTS选项
     return {
-      model_id: "eleven_multilingual_v2",  // 使用多语言模型
+      model_id: "eleven_multilingual_v2",  // 多语言模型
       output_format: "mp3_44100_128",      // 高质量输出
       voice_settings: {
-        stability,           // 定制稳定性
-        similarity_boost,    // 定制相似度
-        style                // 定制风格强度
-      }
+        stability,          // 声音稳定性
+        similarity_boost,   // 相似度提升
+        style,              // 风格强度
+      },
+      // 添加语速参数
+      speed
     };
   }
 }
