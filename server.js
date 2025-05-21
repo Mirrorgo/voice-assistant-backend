@@ -316,16 +316,6 @@ function processAlienRequest(text, params, promptType) {
         globalState.lastUpdatedTime = Date.now();
         console.log("外星人状态已更新:", globalState.alienState);
       }
-
-      if (aiResponse.output) {
-        // 更新输出参数
-        Object.assign(globalState.outputState, aiResponse.output);
-        // 更新序列号和时间戳
-        globalState.sequence++;
-        globalState.lastUpdatedTime = Date.now();
-        console.log("输出参数已更新:", globalState.outputState);
-      }
-
       // 3. 处理文本响应和音频生成 (如果有文本且不是参数模式)
       if (aiResponse.text && promptType !== "parameters") {
         try {
@@ -442,7 +432,6 @@ app.post("/api/alien", async (req, res) => {
     // Always immediately return current state
     res.json({
       alien: { ...globalState.alienState },
-      output: { ...globalState.outputState },
       input: { ...globalState.inputState },
       text: globalState.textContent,
       audio: {
