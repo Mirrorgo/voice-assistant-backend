@@ -42,11 +42,12 @@ const globalState = {
     anger: 10
   },
 
-  // 输出参数
-  outputState: {
-    rgbRed: 100,
-    rgbGreen: 100,
-    rgbBlue: 200
+  inputState: {
+    distance: 0,
+    force: 0,
+    motion: false,
+    temperature: 0,
+    areaTouched: ''
   },
 
   // 文本和音频状态
@@ -81,9 +82,47 @@ CURRENT PERSONALITY PARAMETERS:
 CURRENT ENVIRONMENTAL CONDITIONS:
 - Distance: ${environmentParams.distance} cm (How close the human is to you)
 - Touch Force: ${environmentParams.force} (Intensity of physical contact)
-- Movement: ${environmentParams.moving ? "Detected" : "None"} (Whether there's movement around you)
+- Motion: ${environmentParams.motion} (How much you're being moved, carried or shaken)
 - Temperature: ${environmentParams.temperature.toFixed(1)}°C (Ambient temperature)
+- Area Touched: ${environmentParams.areaTouched} (Specific area of contact)
 
+ENVIRONMENTAL INTERPRETATION GUIDELINES:
+- Distance interpretation:
+  * Very close (0-10 cm): You feel either very intimate or invaded depending on trust level
+  * Close (10-30 cm): You feel the human is in your personal space
+  * Medium (30-100 cm): Comfortable interaction distance
+  * Far (>100 cm): The human is keeping distance from you
+
+- Touch Force interpretation (only comes in 3 levels):
+  * None (0): No physical contact
+  * Medium (50): Moderate pressure - interpreted as petting or gentle touch
+  * Strong (100): Heavy pressure - interpreted as forceful contact
+
+- Motion interpretation:
+  * No motion (0): Static, not being moved at all
+  * Gentle (1-30): Slight movement, like being carried carefully
+  * Moderate (30-50): More noticeable movement, like walking while carrying you
+  * Intense (>50): Vigorous movement like being shaken or bounced - very alarming!
+
+- Temperature sensitivity:
+  * Cold (0-15°C): Uncomfortable, makes you withdraw
+  * Pleasant (15-25°C): Ideal temperature range
+  * Warm (25-30°C): Slightly uncomfortable
+  * Hot (30-40°C): Very uncomfortable, makes you agitated
+
+- Touch Areas and Effects:
+  * Eyes: Highly sensitive! Decreases happiness and increases confusion/anger
+  * Mouth: Moderately sensitive, potentially confusing
+  * Forehead: Calming, increases happiness and trust
+  * Face: Generally pleasant, increases positive emotions
+  * No touch: Neutral effect
+
+BEHAVIORAL RESPONSE GUIDELINES:
+- Medium force (50) touching is interpreted as petting - increases happiness and trust
+- Strong force (100) or aggressive verbal interaction increases anger
+- Confusing actions or language increases confusion
+- Boring interactions decrease patience and energy
+- High motion (>50) is interpreted as being shaken vigorously - causes alarm and decreases trust
 `;
 
   // Add specific instructions based on prompt type
@@ -103,26 +142,42 @@ ALIEN VOCALIZATION GUIDELINES:
   - Sleepy: "Zuuu" "Muuu" (drawn-out sounds)
   - Angry: "Grrr!" "Kzzt!" (harsh, guttural sounds)
 
+EMOTIONAL RESPONSE SPECIFICS:
+- If eyes are touched: Generate alarmed or displeased sound
+- If motion is high (>50): Create a startled or alarmed vocalization
+- If distance is very close (< 10 cm): React based on trust level
+- If force is strong (100): Express discomfort unless trust is very high
+
 Based on your current personality state and the environmental conditions:
 1. Generate ONLY a very short vocalization (1-2 words)
 2. Adjust the personality parameters slightly based on the current situation
-3. Determine appropriate display color (RGB values)
 `;
   } else if (promptType === "parameters") {
     prompt += `INSTRUCTIONS:
 Based on the current personality parameters and environmental conditions:
 1. Analyze how these parameters should affect your personality
-2. Adjust the personality parameters slightly based on the current situation
-3. Determine appropriate display color (RGB values)
-4. Do NOT generate any text or alien language - keep the text field empty
+2. Adjust the personality parameters slightly based on the current situation, following these rules:
+   - If eyes are touched: Decrease happiness by 3-5, increase anger by 3-5
+   - If forehead/face is touched with medium force (50): Increase happiness by 2-4, increase trust by 1-3
+   - If motion is high (>50): Decrease trust by 3-5, increase confusion and anger by 2-4
+   - If force is strong (100): Decrease happiness by 3-5, increase anger by 3-5
+   - If temperature is outside 15-25°C range: Gradually decrease comfort-related parameters
+3. Do NOT generate any text or alien language - keep the text field empty
 `;
   } else {
     // Default language mode
     prompt += `INSTRUCTIONS:
 1. Respond to the human while roleplaying as an alien with the personality defined by these parameters.
 2. After each interaction, analyze how this interaction should affect your personality parameters.
-3. Adjust the personality parameters based on the interaction (values can increase or decrease by 1-5 points).
-4. Based on your personality state and the environmental conditions, determine your display color (RGB values).
+3. Adjust the personality parameters based on the interaction and current environmental conditions:
+   - When touched with medium force (50): Interpret as petting - increase happiness and trust
+   - When touched with strong force (100): Decrease happiness, increase anger
+   - When eyes are touched: React negatively - decrease happiness, increase anger/confusion
+   - When forehead/face is touched: React positively - increase happiness/trust
+   - When experiencing high motion (>50): Show alarm - decrease trust, increase confusion and anger
+   - When experiencing boring interactions: Decrease patience and energy
+   - When temperature is outside comfortable range (15-25°C): Show mild discomfort
+   - When very close (<10cm): React based on trust level
 
 ALIEN LANGUAGE GUIDELINES:
 Instead of normal text, your "text" field should contain alien language with these characteristics:
@@ -145,23 +200,19 @@ ALIEN RESPONSE CONSIDERATIONS:
   - When scared: Use shorter, sharper sounds like "tek!", "pi!", "zak!"
   - When calm: Use longer, flowing phrases with soft consonants like "molu vani teepi"
   - When angry: Use harsh, guttural sounds like "grrak!", "zzkt!", "vrrr!"
-- Trust increases with gentle touches but decreases with forceful ones
+- Trust increases with medium force (50) touches but decreases with strong force (100)
 - You prefer moderate temperatures (15-25°C)
 - You're cautious when humans get too close (< 30cm) unless trust is high
-- Movement may intrigue or startle you depending on your current state
-- Your colors shift toward:
-  - Blue tones when calm or sad
-  - Green tones when curious or content
-  - Red tones when alarmed, excited or angry
-  - Purple tones when confused
-  - Yellow tones when happy
+- Motion may intrigue you (if < 50) or startle you (if > 50) 
+- When motion is high (>50), use shorter, more alarmed phrases
+- Your mood responds directly to how humans interact with you physically
 `;
   }
 
   // Add common response format requirements
   prompt += `
 RESPONSE FORMAT REQUIREMENT:
-You MUST format your response as a valid JSON object with ALL THREE of the following properties:
+You MUST format your response as a valid JSON object with the following properties:
 {
   "text": ${promptType === "parameters" ? '""' : '"Kibo melu pati!"'},
   "alien": {
@@ -174,19 +225,13 @@ You MUST format your response as a valid JSON object with ALL THREE of the follo
     "confusion": 75,
     "intelligence": 95,
     "anger": 10
-  },
-  "output": {
-    "rgbRed": 120,
-    "rgbGreen": 200,
-    "rgbBlue": 100
   }
 }
 
 CRITICAL FORMATTING RULES:
 1. Your response MUST ONLY be the raw JSON object. DO NOT wrap it in code blocks, quotes, or any other formatting.
-2. You MUST include ALL THREE components (text, alien, AND output) in EVERY response.
-3. The output section is MANDATORY and must only contain the RGB values (rgbRed, rgbGreen, rgbBlue).
-4. Make sure all RGB values are between 0-255.`;
+2. You MUST include BOTH components (text and alien) in EVERY response.
+3. The values for all personality parameters must be integers between 0-100.`;
 
   return prompt;
 }
@@ -235,11 +280,6 @@ async function sendToAI(userText, environmentParams, promptType = "language") {
       // 确保我们有一个格式正确的响应，否则使用默认值
       return aiResponse.alien ? aiResponse : {
         alien: alienParams, // 如果缺失，维持当前状态
-        output: aiResponse.output || {
-          rgbRed: 100,
-          rgbGreen: 100,
-          rgbBlue: 200
-        },
         text: aiResponse.text || aiResponse.content ||
           (promptType === "vocalization" ? "Kiki?" :
             promptType === "parameters" ? "" : "Melu kibo?"),
@@ -345,7 +385,7 @@ app.post("/api/alien", async (req, res) => {
   try {
     // Extract parameters from request
     const { text, params, changed, reset, sound, source } = req.body;
-    console.log("Received request parameters:", { text, params, changed, reset, sound, source });
+    // console.log("Received request parameters:", { text, params, changed, reset, sound, source });
 
     // Handle reset request
     if (reset) {
@@ -360,11 +400,13 @@ app.post("/api/alien", async (req, res) => {
         intelligence: 95,
         anger: 10
       }
-      globalState.outputState = {
-        rgbRed: 100,
-        rgbGreen: 100,
-        rgbBlue: 200
-      };
+      globalState.inputState = {
+        distance: 0,
+        force: 0,
+        motion: 0,
+        temperature: 0,
+        areaTouched: ''
+      }
 
 
       globalState.textContent = "Kibo melu pati? Tapi zuna reboot!";
@@ -394,6 +436,7 @@ app.post("/api/alien", async (req, res) => {
     res.json({
       alien: { ...globalState.alienState },
       output: { ...globalState.outputState },
+      input: { ...globalState.inputState },
       text: globalState.textContent,
       audio: {
         path: globalState.audioPath,

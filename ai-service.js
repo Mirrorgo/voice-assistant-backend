@@ -123,11 +123,6 @@ class AIService {
         return {
           text: parsedJson.text || "",
           alien: parsedJson.alien || {},
-          output: {
-            rgbRed: parsedJson.output?.rgbRed || 100,
-            rgbGreen: parsedJson.output?.rgbGreen || 100,
-            rgbBlue: parsedJson.output?.rgbBlue || 200
-          },
           success: true
         };
       } else {
@@ -136,11 +131,6 @@ class AIService {
         return {
           text: parsedJson.text || "",
           alien: parsedJson.alien || {},
-          output: {
-            rgbRed: parsedJson.output?.rgbRed || 100,
-            rgbGreen: parsedJson.output?.rgbGreen || 100,
-            rgbBlue: parsedJson.output?.rgbBlue || 200
-          },
           success: true
         };
       }
@@ -150,11 +140,6 @@ class AIService {
       return {
         text: textContent || "Failed to parse Gemini response",
         alien: {},
-        output: {
-          rgbRed: 100,
-          rgbGreen: 100,
-          rgbBlue: 200
-        },
         success: false,
         error: "Failed to parse JSON response"
       };
@@ -183,11 +168,6 @@ class AIService {
       return {
         text: parsedResponse.text || "",
         alien: parsedResponse.alien || {},
-        output: {
-          rgbRed: parsedResponse.output?.rgbRed || 100,
-          rgbGreen: parsedResponse.output?.rgbGreen || 100,
-          rgbBlue: parsedResponse.output?.rgbBlue || 200
-        },
         success: true
       };
     } catch (e) {
@@ -205,11 +185,6 @@ class AIService {
           return {
             text: parsedJson.text || "",
             alien: parsedJson.alien || {},
-            output: {
-              rgbRed: parsedJson.output?.rgbRed || 100,
-              rgbGreen: parsedJson.output?.rgbGreen || 100,
-              rgbBlue: parsedJson.output?.rgbBlue || 200
-            },
             success: true
           };
         } catch (e2) {
@@ -221,11 +196,6 @@ class AIService {
       return {
         text: aiResponseText || "Failed to parse response",
         alien: {},
-        output: {
-          rgbRed: 100,
-          rgbGreen: 100,
-          rgbBlue: 200
-        },
         success: true
       };
     }

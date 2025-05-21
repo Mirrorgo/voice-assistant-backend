@@ -44,7 +44,7 @@ class DeepgramService {
 			container: 'wav',         // 支持的容器格式：wav, ogg, none
 			sample_rate: 24000,       // 采样率
 			pitch: 1.0,               // 音调调整因子 (0.5 - 2.0)
-			speed: 1.0                // 语速调整因子 (0.5 - 2.0)
+			speed: 0.6                // 语速调整因子 (0.5 - 2.0)
 		};
 	}
 
@@ -209,25 +209,25 @@ class DeepgramService {
 	getAlienVoiceOptions(alienState) {
 		// 基于外星人情绪状态调整音调和语速
 		let pitch = 1.0;
-		let speed = 1.0;
+		let speed = 0.6;
 
 		// 高兴度影响音调 - 越高兴音调越高
 		if (alienState.happiness > 70) {
-			pitch += 0.3;  // 很高兴 → 音调升高
+			pitch += 0.03;  // 很高兴 → 音调升高
 		} else if (alienState.happiness < 30) {
-			pitch -= 0.2;  // 不高兴 → 音调降低
+			pitch -= 0.02;  // 不高兴 → 音调降低
 		}
 
 		// 能量影响语速 - 越有能量语速越快
 		if (alienState.energy > 70) {
-			speed += 0.2;  // 精力充沛 → 语速加快
+			speed += 0.01;  // 精力充沛 → 语速加快
 		} else if (alienState.energy < 30) {
-			speed -= 0.2;  // 能量低 → 语速减慢
+			speed -= 0.02;  // 能量低 → 语速减慢
 		}
 
 		// 确保值在有效范围内
-		pitch = Math.max(0.5, Math.min(2.0, pitch));
-		speed = Math.max(0.5, Math.min(2.0, speed));
+		pitch = Math.max(0.5, Math.min(0.77, pitch));
+		speed = Math.max(0.5, Math.min(0.77, speed));
 
 		// 返回定制选项，使用支持的格式
 		return {

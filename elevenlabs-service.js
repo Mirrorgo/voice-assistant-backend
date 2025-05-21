@@ -34,7 +34,8 @@ class ElevenLabsService {
     };
 
     // 默认使用的声音ID (可以替换为适合外星宠物的声音ID)
-    this.alienVoiceId = "tTdCI0IDTgFa2iLQiWu4"; // 这是示例ID，需要替换为实际可爱风格的voice ID
+    // this.alienVoiceId = "tTdCI0IDTgFa2iLQiWu4"; // 这是示例ID，需要替换为实际可爱风格的voice ID
+    this.alienVoiceId = "07ELl6XlU9grWbdaHhSA"; // 这是示例ID，需要替换为实际可爱风格的voice ID
   }
 
   /**
