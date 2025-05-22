@@ -62,7 +62,13 @@ const globalState = {
   // 处理状态标志
   isPendingRequest: false // 是否有正在处理的请求
 };
-
+function constrainEmotionValues(alienState) {
+  const constrainedState = {};
+  for (const [key, value] of Object.entries(alienState)) {
+    constrainedState[key] = Math.max(0, Math.min(100, Math.round(value)));
+  }
+  return constrainedState;
+}
 
 function generateSystemPrompt(alienParams, environmentParams, promptType = "language") {
   // Base prompt
@@ -310,7 +316,7 @@ function processAlienRequest(text, params, promptType) {
       // 2. 更新AI返回的参数
       if (aiResponse.alien) {
         // 更新外星人状态
-        Object.assign(globalState.alienState, aiResponse.alien);
+        Object.assign(globalState.alienState, constrainEmotionValues(aiResponse.alien));
         // 更新序列号和时间戳
         globalState.sequence++;
         globalState.lastUpdatedTime = Date.now();
