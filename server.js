@@ -156,7 +156,7 @@ MOTION RESPONSES:
 TOUCH FORCE RESPONSES:
 - No touch (0): **+1-2 patience** (peaceful state)
 - Medium force (50) - Petting: **+8-12 happiness, +5-9 trust, +3-6 sociability, -2-4 anger**
-- Strong force (100) - Rough handling: **-10-15 happiness, +20-25 anger, -10-16 trust, +5-8 confusion, +20-30 sociability**
+- Strong force (100) - Rough handling: **-10-15 happiness, +30-35 anger, -10-16 trust, +5-8 confusion, +20-30 sociability**
 
 ENHANCED TOUCH AREA RESPONSES:
 - Eyes touched: **-10-15 happiness, +10-15 anger, +8-12 confusion, -13-20 trust**
@@ -253,7 +253,7 @@ Based on the current personality parameters and environmental conditions:
     
     TOUCH ADJUSTMENTS:
     - Medium force (50): **+8-12 happiness, +5-9 trust, +3-6 sociability, -2-4 anger**
-    - Strong force (100): **-10-15 happiness, +20-25 anger, -5-8 trust, +5-8 confusion,+20-30 sociability**
+    - Strong force (100): **-10-15 happiness, +30-35 anger, -5-8 trust, +5-8 confusion,+20-30 sociability**
     - Eyes touched: **-10-15 happiness, +10-15 anger, +8-12 confusion, -8-12 trust**
     - **FOREHEAD touched: ENHANCED CALMING - +12-18 happiness, +8-12 trust, +5-9 patience, -8-15 anger, +3-6 sociability, -5-8 confusion**
     - **High anger (>60) + forehead: Additional -10-15 anger reduction**
@@ -294,7 +294,7 @@ Based on the current personality parameters and environmental conditions:
     
     OTHER INTERACTIONS:
     - When touched with medium force (50): Interpret as petting - increase happiness by **8-12**, increase trust by **5-9**, **decrease anger by 2-5**
-    - When touched with strong force (100): Decrease happiness by **10-15**, increase anger by **20-25**
+    - When touched with strong force (100): Decrease happiness by **10-15**, increase anger by **30-35**
     - When eyes are touched: React extremely negatively - decrease happiness by **10-15**, increase anger/confusion by **10-15**
     - **When forehead is touched: ENHANCED CALMING RESPONSE - increase happiness by 12-18, increase trust by 8-12, increase patience by 5-9, DECREASE ANGER by 8-15, increase sociability by 3-6, decrease confusion by 5-8**
     - **FOREHEAD HIGH ANGER BONUS: If current anger >60 and forehead is touched, apply additional -10-15 anger reduction**
