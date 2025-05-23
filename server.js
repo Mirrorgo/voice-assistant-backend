@@ -164,11 +164,11 @@ TEMPERATURE RESPONSES:
 - Very Hot (>45°C): **-6-10 happiness, +5-10 anger, -3-6 patience**
 
 INTERACTION QUALITY RESPONSES:
-- Engaging/interesting interactions: **+3-6 happiness, +2-5 energy, +1-4 curiosity**
+- Engaging/interesting interactions: **+3-6 happiness, +2-5 energy, +1-4 curiosity, -1-3 anger**
 - Boring/repetitive interactions: **-5-8 patience, -3-6 energy, +2-4 confusion**
 - Confusing actions/language: **+5-10 confusion, -2-5 patience**
 - Aggressive verbal tone: **+8-15 anger, -5-10 happiness, -3-8 trust**
-- Gentle/caring verbal tone: **+3-8 happiness, +2-6 trust, +1-4 sociability**
+- Gentle/caring verbal tone: **+3-8 happiness, +2-6 trust, +1-4 sociability, -2-5 anger**
 
 CUMULATIVE EFFECTS RULE:
 - Multiple simultaneous inputs should have **additive effects** but **capped at reasonable limits**
@@ -238,7 +238,8 @@ Based on the current personality parameters and environmental conditions:
     
     INTERACTION QUALITY ADJUSTMENTS:
     - Boring/repetitive: **-5-8 patience, -3-6 energy, +2-4 confusion**
-    - Engaging/interesting: **+3-6 happiness, +2-5 energy, +1-4 curiosity**
+    - Engaging/interesting: **+3-6 happiness, +2-5 energy, +1-4 curiosity, -1-3 anger**
+    - Gentle/caring tone: **-2-5 anger**
     
     LIMITS: No parameter should change by more than ±25 in one interaction
 3. Do NOT generate any text or alien language - keep the text field empty
@@ -259,11 +260,13 @@ Based on the current personality parameters and environmental conditions:
     - Violent motion (91-100): Increase anger by **15-20**, decrease trust by **12-18**, decrease happiness by **15-20**, increase confusion by **10-15**
     
     OTHER INTERACTIONS:
-    - When touched with medium force (50): Interpret as petting - increase happiness by **8-12**, increase trust by **5-9**
+    - When touched with medium force (50): Interpret as petting - increase happiness by **8-12**, increase trust by **5-9**, **decrease anger by 2-5**
     - When touched with strong force (100): Decrease happiness by **10-15**, increase anger by **10-15**
     - When eyes are touched: React extremely negatively - decrease happiness by **10-15**, increase anger/confusion by **10-15**
-    - When forehead/face is touched: React very positively - increase happiness by **8-12**, increase trust by **5-9**
+    - When forehead/face is touched: React very positively - increase happiness by **8-12**, increase trust by **5-9**, **decrease anger by 3-6**
     - When experiencing boring interactions: Rapidly decrease patience and energy
+    - When experiencing **engaging/interesting interactions**: Increase happiness by **3-6**, increase energy by **2-5**, increase curiosity by **1-4**, **decrease anger by 1-3**
+    - When experiencing **gentle/caring verbal tone**: Increase happiness by **3-8**, increase trust by **2-6**, increase sociability by **1-4**, **decrease anger by 2-5**
     - When temperature is outside comfortable range (15-35°C): Show discomfort - below 15°C decreases happiness, above 35°C decreases patience and increases agitation
 
 ALIEN LANGUAGE GUIDELINES:
