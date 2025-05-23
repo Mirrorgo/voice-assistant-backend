@@ -1,11 +1,10 @@
-// server.js - Modified with polling support
+// server.js - Modified with polling support and language priority
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
 require("dotenv").config();
 const ElevenLabsService = require("./elevenlabs-service");
-
 
 // Import AI service and Deepgram service
 const AIService = require("./ai-service");
@@ -27,7 +26,7 @@ const SPEECH_LANGUAGE = "en-US"; // Default language is English
 const aiService = new AIService();
 const deepgramService = new DeepgramService();
 
-// 全局状态管理
+// 全局状态管理 - 添加 language 优先级控制
 const globalState = {
   // 外星人情绪参数
   alienState: {
@@ -59,15 +58,38 @@ const globalState = {
   sequence: 1,            // 全局序列号
   lastUpdatedTime: Date.now(),  // 上次更新时间戳
 
-  // 处理状态标志
-  isPendingRequest: false // 是否有正在处理的请求
+  // 处理状态标志 - 修改为支持 language 优先级
+  isPendingRequest: false, // 是否有正在处理的请求
+  languageRequestTime: 0,  // language 请求的时间戳
+  LANGUAGE_BLOCK_DURATION: 5000 // language 请求阻塞其他请求的时长（5秒）
 };
+
 function constrainEmotionValues(alienState) {
   const constrainedState = {};
   for (const [key, value] of Object.entries(alienState)) {
     constrainedState[key] = Math.max(0, Math.min(100, Math.round(value)));
   }
   return constrainedState;
+}
+
+// 检查是否可以处理请求
+function canProcessRequest(promptType) {
+  const now = Date.now();
+
+  // 如果是 language 请求，总是可以处理
+  if (promptType === "language") {
+    return true;
+  }
+
+  // 如果有 language 请求在阻塞期内，拒绝其他请求
+  if (globalState.languageRequestTime > 0 &&
+    (now - globalState.languageRequestTime) < globalState.LANGUAGE_BLOCK_DURATION) {
+    console.log(`Blocking ${promptType} request due to recent language request`);
+    return false;
+  }
+
+  // 检查常规的 pending 状态
+  return !globalState.isPendingRequest;
 }
 
 // 在 generateSystemPrompt 函数中增强动作解释和情绪响应
@@ -420,10 +442,23 @@ async function sendToAI(userText, environmentParams, promptType = "language") {
 }
 
 // Process alien API requests asynchronously without blocking response
+// 修改后的函数，支持 language 优先级
 function processAlienRequest(text, params, promptType) {
-  if (globalState.isPendingRequest) return false;
+  // 检查是否可以处理请求
+  if (!canProcessRequest(promptType)) {
+    console.log(`Request blocked: ${promptType} request cannot be processed at this time`);
+    return false;
+  }
 
-  globalState.isPendingRequest = true;
+  // 如果是 language 请求，设置阻塞时间戳并强制处理
+  if (promptType === "language") {
+    globalState.languageRequestTime = Date.now();
+    console.log("Language request initiated - blocking other requests for 5 seconds");
+    // language 请求不检查 isPendingRequest，直接处理
+  } else {
+    // 非 language 请求设置 pending 状态
+    globalState.isPendingRequest = true;
+  }
 
   // Use async IIFE to handle the AI request
   (async () => {
@@ -467,7 +502,11 @@ function processAlienRequest(text, params, promptType) {
     } catch (error) {
       console.error(`Error processing ${promptType} request:`, error);
     } finally {
-      globalState.isPendingRequest = false;
+      // 只有非 language 请求才重置 isPendingRequest
+      if (promptType !== "language") {
+        globalState.isPendingRequest = false;
+      }
+      console.log(`${promptType} request processing completed`);
     }
   })();
 
@@ -522,9 +561,12 @@ app.post("/api/alien", async (req, res) => {
         areaTouched: ''
       }
 
-
       globalState.textContent = "Kibo melu pati? Tapi zuna reboot!";
       globalState.audioPath = null;
+
+      // 重置优先级控制状态
+      globalState.languageRequestTime = 0;
+      globalState.isPendingRequest = false;
 
       globalState.sequence++;
       globalState.lastUpdatedTime = Date.now();
@@ -548,12 +590,21 @@ app.post("/api/alien", async (req, res) => {
         temperature: params.temperature,
         areaTouched: params.areaTouched
       }
-      // Process the request asynchronously
-      processAlienRequest(text, params, promptType);
 
+      // Process the request asynchronously with new priority logic
+      const requestAccepted = processAlienRequest(text, params, promptType);
+
+      // 如果请求被拒绝，在响应中添加提示信息
+      if (!requestAccepted) {
+        console.log(`Request rejected: ${promptType} request blocked`);
+      }
     }
 
     // Always immediately return current state
+    const now = Date.now();
+    const isLanguageBlocking = globalState.languageRequestTime > 0 &&
+      (now - globalState.languageRequestTime) < globalState.LANGUAGE_BLOCK_DURATION;
+
     res.json({
       alien: { ...globalState.alienState },
       input: { ...globalState.inputState },
@@ -565,7 +616,10 @@ app.post("/api/alien", async (req, res) => {
       success: true,
       sequence: globalState.sequence,
       timestamp: globalState.lastUpdatedTime,
-      isPending: globalState.isPendingRequest
+      isPending: globalState.isPendingRequest,
+      languageBlocking: isLanguageBlocking, // 新增：告知前端是否在 language 阻塞期
+      languageBlockTimeRemaining: isLanguageBlocking ?
+        Math.max(0, globalState.LANGUAGE_BLOCK_DURATION - (now - globalState.languageRequestTime)) : 0 // 新增：剩余阻塞时间
     });
 
   } catch (error) {
@@ -629,7 +683,6 @@ app.get("/api/health", (req, res) => {
 
 app.use('/audio', express.static(path.join(__dirname, 'public/audio')));
 
-
 // Global error handling
 app.use((err, req, res, next) => {
   console.error("Uncaught error:", err);
@@ -639,11 +692,11 @@ app.use((err, req, res, next) => {
   });
 });
 
-
 // Start server
 app.listen(port, () => {
   console.log(`Backend server running at http://localhost:${port}`);
   console.log(`Speech language: ${SPEECH_LANGUAGE}`);
+  console.log(`Language request blocking duration: ${globalState.LANGUAGE_BLOCK_DURATION}ms`);
 
   if (process.env.DEEPGRAM_API_KEY) {
     console.log("Deepgram API configuration loaded");
