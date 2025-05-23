@@ -135,10 +135,10 @@ MOTION RESPONSES:
 TOUCH FORCE RESPONSES:
 - No touch (0): **+1-2 patience** (peaceful state)
 - Medium force (50) - Petting: **+8-12 happiness, +5-9 trust, +3-6 sociability, -2-4 anger**
-- Strong force (100) - Rough handling: **-10-15 happiness, +10-15 anger, -5-8 trust, +5-8 confusion**
+- Strong force (100) - Rough handling: **-10-15 happiness, +10-15 anger, -10-16 trust, +5-8 confusion**
 
 ENHANCED TOUCH AREA RESPONSES:
-- Eyes touched: **-10-15 happiness, +10-15 anger, +8-12 confusion, -8-12 trust**
+- Eyes touched: **-10-15 happiness, +10-15 anger, +8-12 confusion, -13-20 trust**
 - Mouth touched: **+3-6 confusion, -2-4 happiness** (moderate sensitivity)
 - **FOREHEAD touched: ENHANCED CALMING EFFECT - +12-18 happiness, +8-12 trust, +5-9 patience, -8-15 anger, +3-6 sociability, -5-8 confusion** ⭐
 - Face touched: **+6-10 happiness, +3-6 trust, +2-5 sociability**
