@@ -355,7 +355,7 @@ CRITICAL FORMATTING RULES:
 2. You MUST include BOTH components (text and alien) in EVERY response.
 3. The values for all personality parameters must be integers between 0-100.
 4. **FOREHEAD SPECIAL CONSIDERATION**: When forehead is touched, ensure anger reduction is prioritized and happiness/trust are significantly boosted.
-5. **Emotional cross-influence on sociability**: All current emotional parameters (happiness, anger, trust, confusion, patience, curiosity, energy) collectively influence the final sociability level - high anger/confusion decrease social openness, high happiness/trust increase social engagement, low patience reduces social tolerance, high curiosity promotes social exploration`;
+5. **Emotional cross-influence on sociability**: All current emotional parameters (happiness, anger, trust, confusion, patience, curiosity, energy) collectively provide a subtle influence on the final sociability level within a ±5 range - the combined emotional state can slightly boost or reduce social openness, but the total additional impact from all emotions combined remains within this modest boundary.`
 
   return prompt;
 }
