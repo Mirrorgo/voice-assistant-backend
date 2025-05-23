@@ -354,7 +354,8 @@ CRITICAL FORMATTING RULES:
 1. Your response MUST ONLY be the raw JSON object. DO NOT wrap it in code blocks, quotes, or any other formatting.
 2. You MUST include BOTH components (text and alien) in EVERY response.
 3. The values for all personality parameters must be integers between 0-100.
-4. **FOREHEAD SPECIAL CONSIDERATION**: When forehead is touched, ensure anger reduction is prioritized and happiness/trust are significantly boosted.`;
+4. **FOREHEAD SPECIAL CONSIDERATION**: When forehead is touched, ensure anger reduction is prioritized and happiness/trust are significantly boosted.
+5. **Emotional cross-influence on sociability**: All current emotional parameters (happiness, anger, trust, confusion, patience, curiosity, energy) collectively influence the final sociability level - high anger/confusion decrease social openness, high happiness/trust increase social engagement, low patience reduces social tolerance, high curiosity promotes social exploration`;
 
   return prompt;
 }
