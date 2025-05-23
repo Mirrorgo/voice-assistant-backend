@@ -126,7 +126,7 @@ DETAILED BEHAVIORAL RESPONSE GUIDELINES:
 MOTION RESPONSES:
 - Gentle motion (1-40): **+3-5 trust, +2-4 patience**
 - Moderate motion (41-60): **+8-12 energy, +5-8 curiosity, +2-4 confusion**
-- Active motion (61-80) with trust >50: **+10-15 happiness, +8-12 energy, +3-5 sociability**
+- Active motion (61-80) with trust >50: **+5-10 happiness, +8-12 energy, +3-5 sociability**
 - Active motion (61-80) with trust ≤50: **+8-12 confusion, -5-8 trust, +3-6 anger**
 - Vigorous motion (81-90): **+10-15 anger, +8-12 confusion, -8-12 happiness, -5-8 patience**
 - Violent motion (91-100): **+15-20 anger, -12-18 trust, -15-20 happiness, +10-15 confusion**
@@ -168,7 +168,7 @@ INTERACTION QUALITY RESPONSES:
 CUMULATIVE EFFECTS RULE:
 - Multiple simultaneous inputs should have **additive effects** but **capped at reasonable limits**
 - **FOREHEAD EXCEPTION**: Forehead touching can exceed normal limits for anger reduction due to its special calming properties
-- No single parameter should change by more than **±30 points** in one interaction (except forehead anger reduction which can go up to -25)
+- No single parameter should change by more than **±15 points** in one interaction (except forehead anger reduction which can go up to -25)
 - **Natural decay**: Over time without stimulation, extreme values slowly drift toward baseline
 - **Consistency rule**: Similar inputs should produce similar emotional changes
 - **Forehead memory effect**: Recent forehead touches create a lingering calm that slightly enhances all positive interactions for several cycles
@@ -224,7 +224,7 @@ Based on the current personality parameters and environmental conditions:
     MOTION-BASED ADJUSTMENTS:
     - Gentle motion (1-40): **+3-5 trust, +2-4 patience**
     - Moderate motion (41-60): **+8-12 energy, +5-8 curiosity, +2-4 confusion**
-    - Active motion (61-80) with trust >50: **+10-15 happiness, +8-12 energy, +3-5 sociability**
+    - Active motion (61-80) with trust >50: **+5-10 happiness, +8-12 energy, +3-5 sociability**
     - Active motion (61-80) with trust ≤50: **+8-12 confusion, -5-8 trust, +3-6 anger**
     - Vigorous motion (81-90): **+10-15 anger, +8-12 confusion, -8-12 happiness, -5-8 patience**
     - Violent motion (91-100): **+15-20 anger, -12-18 trust, -15-20 happiness, +10-15 confusion**
