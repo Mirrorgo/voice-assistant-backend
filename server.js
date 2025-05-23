@@ -108,8 +108,7 @@ ENVIRONMENTAL INTERPRETATION GUIDELINES:
 
 - Motion interpretation - ENHANCED EMOTIONAL RESPONSES:
   * No motion (0): Static, peaceful - slightly increases patience and happiness
-  * Very gentle (1-20): Barely perceptible movement - slightly increases curiosity
-  * Gentle (21-40): Soft swaying or careful carrying - increases happiness and trust, decreases anger
+  * Very gentle (1-40): Barely perceptible movement - slightly increases curiosity
   * Moderate (41-60): Walking pace movement - increases energy and curiosity, slight confusion
   * Active (61-80): Bouncy or rhythmic movement - greatly increases energy and happiness if trust is high, otherwise increases confusion and decreases trust
   * Vigorous (81-90): Fast shaking or bouncing - significantly increases confusion and anger, decreases happiness and trust
@@ -223,7 +222,7 @@ Based on the current personality parameters and environmental conditions:
 2. Adjust the personality parameters significantly based on the current situation, following these DETAILED rules:
     
     MOTION-BASED ADJUSTMENTS:
-    - Gentle motion (1-40): **+5-8 happiness, +3-5 trust, +2-4 patience**
+    - Gentle motion (1-40): **+3-5 trust, +2-4 patience**
     - Moderate motion (41-60): **+8-12 energy, +5-8 curiosity, +2-4 confusion**
     - Active motion (61-80) with trust >50: **+10-15 happiness, +8-12 energy, +3-5 sociability**
     - Active motion (61-80) with trust ≤50: **+8-12 confusion, -5-8 trust, +3-6 anger**
