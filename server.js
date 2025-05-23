@@ -152,8 +152,8 @@ ENHANCED TOUCH AREA RESPONSES:
 - **Cumulative peace effect**: Multiple consecutive forehead touches have exponentially calming effects
 
 DISTANCE RESPONSES:
-- Very close (0-10cm) with trust >60: **+5-8 happiness, +3-6 sociability**
-- Very close (0-10cm) with trust ≤60: **+6-10 confusion, -3-6 happiness, +2-5 anger**
+- Very close (0-10cm) with trust >60: **+3-6 sociability**
+- Very close (0-10cm) with trust ≤60: **+6-10 confusion, +2-5 anger**
 - Close (10-30cm): **+2-4 curiosity, +1-3 energy**
 - Medium (30-100cm): **+1-2 patience** (comfortable zone)
 - Far (>100cm): **-1-3 sociability, +1-2 patience**
