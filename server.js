@@ -156,7 +156,7 @@ MOTION RESPONSES:
 TOUCH FORCE RESPONSES:
 - No touch (0): **+1-2 patience** (peaceful state)
 - Medium force (50) - Petting: **+8-12 happiness, +5-9 trust, +3-6 sociability, -2-4 anger**
-- Strong force (100) - Rough handling: **-10-15 happiness, +10-15 anger, -10-16 trust, +5-8 confusion**
+- Strong force (100) - Rough handling: **-10-15 happiness, +10-15 anger, -10-16 trust, +5-8 confusion, +20-30 sociability**
 
 ENHANCED TOUCH AREA RESPONSES:
 - Eyes touched: **-10-15 happiness, +10-15 anger, +8-12 confusion, -13-20 trust**
@@ -253,7 +253,7 @@ Based on the current personality parameters and environmental conditions:
     
     TOUCH ADJUSTMENTS:
     - Medium force (50): **+8-12 happiness, +5-9 trust, +3-6 sociability, -2-4 anger**
-    - Strong force (100): **-10-15 happiness, +10-15 anger, -5-8 trust, +5-8 confusion**
+    - Strong force (100): **-10-15 happiness, +10-15 anger, -5-8 trust, +5-8 confusion,+20-30 sociability**
     - Eyes touched: **-10-15 happiness, +10-15 anger, +8-12 confusion, -8-12 trust**
     - **FOREHEAD touched: ENHANCED CALMING - +12-18 happiness, +8-12 trust, +5-9 patience, -8-15 anger, +3-6 sociability, -5-8 confusion**
     - **High anger (>60) + forehead: Additional -10-15 anger reduction**
